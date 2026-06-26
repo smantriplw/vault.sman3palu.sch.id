@@ -10,6 +10,7 @@ const adminItems = [
   { path: "/services", label: "Services", icon: "settings" },
   { path: "/requests", label: "Requests", icon: "activity" },
   { path: "/admin-keys", label: "Encryption Keys", icon: "shield" },
+  { path: "/admin/integration", label: "Integration", icon: "code" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

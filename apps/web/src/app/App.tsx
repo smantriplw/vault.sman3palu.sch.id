@@ -16,6 +16,7 @@ import { ExportSecretsPage } from "@/pages/export-secrets";
 import { ServicesPage } from "@/pages/services";
 import { RequestsPage } from "@/pages/requests";
 import { AdminKeysPage } from "@/pages/admin-keys";
+import { IntegrationPage } from "@/pages/integration";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ export function App() {
             <Route path="/services" element={<AdminRoute><ServicesPage /></AdminRoute>} />
             <Route path="/requests" element={<AdminRoute><RequestsPage /></AdminRoute>} />
             <Route path="/admin-keys" element={<AdminRoute><AdminKeysPage /></AdminRoute>} />
+            <Route path="/admin/integration" element={<AdminRoute><IntegrationPage /></AdminRoute>} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
