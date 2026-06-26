@@ -102,7 +102,20 @@ bun run dev
 docker compose up -d
 ```
 
-Nginx serves both API (`/api/`) and static frontend on port 80.
+Nginx serves the frontend on the main domain and proxies `/api/` to the API. Optionally, the API can also be served on a separate subdomain (set `API_DOMAIN_URL`).
+
+### 7. Separate API Domain (Optional)
+
+By default, the API is available at `/api/*` on your main domain. To also serve it on a dedicated subdomain, add to `.env`:
+
+```env
+MAIN_DOMAIN=vault.example.com                    # your main domain
+API_DOMAIN_URL=api.vault.example.com              # API also accessible here
+COOKIE_DOMAIN=.example.com                        # leading dot = across subdomains
+ZITADEL_REDIRECT_URI=https://vault.example.com/api/auth/callback
+```
+
+Both `https://vault.example.com/api/...` and `https://api.vault.example.com/...` serve the same API. The web UI stays on the main domain only.
 
 ## Architecture
 
@@ -111,7 +124,7 @@ Nginx serves both API (`/api/`) and static frontend on port 80.
                     │   Nginx :80  │
                     │  (SSL proxy) │
                     └──┬───────┬───┘
-                   /api/     /
+                   /api/     /     api.* (optional)
                ┌────▼──┐ ┌──▼─────┐
                │  API  │ │  Web   │
                │ :3000 │ │ :8080  │
@@ -144,13 +157,19 @@ Nginx serves both API (`/api/`) and static frontend on port 80.
 │           └── pages/        # Dashboard, secrets, admin pages
 ├── packages/
 │   └── shared/               # Zod schemas & shared types
+├── nginx/
+│   ├── templates/
+│   │   ├── default.conf.template      # Main domain nginx config
+│   │   └── api-domain.conf.template   # Optional API subdomain config
+│   └── docker-entrypoint.d/
+│       └── 15-render-config.sh        # Renders templates at container start
 ├── scripts/
 │   ├── generate-sbom.sh      # CycloneDX SBOM generator
 │   └── rotate-keys.sh        # JWT + encryption key rotation procedure
 ├── docker-compose.yml
 ├── Dockerfile.api
-├── Dockerfile.web
-└── nginx.conf
+├── Dockerfile.nginx          # Custom nginx image with templates + entrypoint
+└── Dockerfile.web
 ```
 
 ## API Overview
@@ -223,7 +242,9 @@ Keys are prefixed with `vk_{env}_` (e.g., `vk_dev_abc123...`). On rotation, the 
 | `ENCRYPTION_KEY` | Yes | — | 64 hex chars (32 bytes) |
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `APP_URL` | No | `http://localhost:5173` | Frontend origin (CORS) |
-| `COOKIE_DOMAIN` | No | `localhost` | Session cookie domain |
+| `API_DOMAIN_URL` | No | — | Serve API on a separate domain (e.g. `api.example.com`) |
+| `MAIN_DOMAIN` | No | `_` (catch-all) | Nginx server_name for the main domain |
+| `COOKIE_DOMAIN` | No | `localhost` | Session cookie domain (use `.example.com` for shared subdomain cookies) |
 | `ENVIRONMENT` | No | `dev` | `dev` or `prod` |
 
 ## Development
