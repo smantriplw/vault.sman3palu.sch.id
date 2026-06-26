@@ -41,8 +41,8 @@ export function ImportPage() {
             </div>
 
             {mutation.data && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800 font-medium mb-1">
+              <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
+                <p className="text-sm text-brand-800 font-medium mb-1">
                   Imported {mutation.data.imported} of {mutation.data.results.length} entries
                 </p>
                 {mutation.data.results

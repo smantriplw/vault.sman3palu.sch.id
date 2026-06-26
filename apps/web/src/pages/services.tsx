@@ -63,7 +63,7 @@ function CreateServiceModal({ onClose }: { onClose: () => void }) {
                     type="checkbox"
                     checked={form.scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
                   <span className="text-sm text-gray-700">{scope}</span>
                 </label>
@@ -84,7 +84,7 @@ function CreateServiceModal({ onClose }: { onClose: () => void }) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="label mb-0">IP Whitelist</label>
-              <button type="button" onClick={addWhitelist} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add</button>
+              <button type="button" onClick={addWhitelist} className="text-sm text-brand-600 hover:text-brand-700 font-medium">+ Add</button>
             </div>
             {form.whitelist.map((w, i) => (
               <div key={i} className="flex gap-2 mb-2">
@@ -161,7 +161,7 @@ export function ServicesPage() {
 
         {isLoading && (
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-600 border-t-transparent" />
           </div>
         )}
 

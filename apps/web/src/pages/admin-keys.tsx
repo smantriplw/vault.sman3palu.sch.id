@@ -147,7 +147,7 @@ function UpdateKeyModal({ keyName, currentAllowed, currentRotate, onClose }: {
 
         <div className="space-y-4">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.deletion_allowed} onChange={(e) => setForm({ ...form, deletion_allowed: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <input type="checkbox" checked={form.deletion_allowed} onChange={(e) => setForm({ ...form, deletion_allowed: e.target.checked })} className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
             <span className="text-sm text-gray-700">Allow deletion</span>
           </label>
           <div>
@@ -205,7 +205,7 @@ export function AdminKeysPage() {
 
         {isLoading && (
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-600 border-t-transparent" />
           </div>
         )}
 
@@ -217,7 +217,7 @@ export function AdminKeysPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-medium text-gray-900">{key.name}</h3>
-                      <span className="badge bg-blue-50 text-blue-700 text-xs">{key.algorithm}</span>
+                      <span className="badge bg-brand-50 text-brand-700 text-xs">{key.algorithm}</span>
                       {key.auto_rotate_period && (
                         <span className="badge bg-purple-50 text-purple-700 text-xs">auto-rotate: {key.auto_rotate_period}</span>
                       )}

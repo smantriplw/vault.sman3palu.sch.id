@@ -42,7 +42,7 @@ export function SecretsPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-600 border-t-transparent" />
         </div>
       </Layout>
     );
@@ -76,7 +76,7 @@ export function SecretsPage() {
                 onClick={() => setCategoryFilter(cat)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   categoryFilter === cat
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-brand-100 text-brand-700"
                     : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
                 }`}
               >
@@ -100,7 +100,7 @@ export function SecretsPage() {
                       <p className="text-base font-semibold text-gray-900 truncate">{secret.name}</p>
                     </div>
                     {secret.shared && (
-                      <span className="badge bg-blue-50 text-blue-700 ml-2 shrink-0">shared</span>
+                      <span className="badge bg-brand-50 text-brand-700 ml-2 shrink-0">shared</span>
                     )}
                   </div>
 
@@ -127,7 +127,7 @@ export function SecretsPage() {
                           </button>
                           <button
                             onClick={() => copyValue(secret.id, field.value)}
-                            className="text-gray-400 hover:text-blue-600 p-0.5"
+                            className="text-gray-400 hover:text-brand-600 p-0.5"
                             title="Copy"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -171,7 +171,7 @@ export function SecretsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
                 <p className="text-gray-500 mb-1">No secrets found</p>
-                <Link to="/secrets/new" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <Link to="/secrets/new" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
                   Create your first secret
                 </Link>
               </div>

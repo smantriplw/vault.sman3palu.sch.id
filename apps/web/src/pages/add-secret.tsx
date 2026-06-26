@@ -90,7 +90,7 @@ export function AddSecretPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="label mb-0">Fields</label>
-                <button type="button" onClick={addField} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <button type="button" onClick={addField} className="text-sm text-brand-600 hover:text-brand-700 font-medium">
                   + Add field
                 </button>
               </div>

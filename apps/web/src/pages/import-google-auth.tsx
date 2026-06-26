@@ -57,8 +57,8 @@ export function ImportGoogleAuthPage() {
     <Layout>
       <div className="max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
           </div>
@@ -74,7 +74,7 @@ export function ImportGoogleAuthPage() {
               <button
                 onClick={() => { setMode("uri"); setPreview(null); }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  mode === "uri" ? "bg-blue-100 text-blue-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  mode === "uri" ? "bg-brand-100 text-brand-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
                 }`}
               >
                 Migration URI
@@ -82,7 +82,7 @@ export function ImportGoogleAuthPage() {
               <button
                 onClick={() => { setMode("data"); setPreview(null); }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  mode === "data" ? "bg-blue-100 text-blue-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                  mode === "data" ? "bg-brand-100 text-brand-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
                 }`}
               >
                 Raw Data (Base64)
@@ -144,8 +144,8 @@ export function ImportGoogleAuthPage() {
             )}
 
             {mutation.data && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800 font-medium">
+              <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
+                <p className="text-sm text-brand-800 font-medium">
                   Imported {mutation.data.imported} of {mutation.data.total} entries
                 </p>
                 {mutation.data.results

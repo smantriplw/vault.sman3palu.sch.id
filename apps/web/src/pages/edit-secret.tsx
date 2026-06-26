@@ -78,7 +78,7 @@ export function EditSecretPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-600 border-t-transparent" />
         </div>
       </Layout>
     );
@@ -118,7 +118,7 @@ export function EditSecretPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="label mb-0">Fields</label>
-                <button type="button" onClick={addField} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <button type="button" onClick={addField} className="text-sm text-brand-600 hover:text-brand-700 font-medium">
                   + Add field
                 </button>
               </div>

@@ -40,8 +40,8 @@ export function ImportSecretsPage() {
             </div>
 
             {mutation.data && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800 font-medium">
+              <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
+                <p className="text-sm text-brand-800 font-medium">
                   Imported {mutation.data.imported} / {mutation.data.results.length}
                 </p>
                 {mutation.data.results.filter((r: any) => !r.success).map((r: any, i: number) => (

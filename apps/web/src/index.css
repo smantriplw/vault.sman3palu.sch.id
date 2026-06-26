@@ -3,17 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #eff6ff;
+  --primary: #0B5FEF;
+  --primary-dark: #0a4fd8;
+  --primary-light: #eef4ff;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-[#F8F9FA] text-gray-900 antialiased;
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
 .card {
-  @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+  @apply bg-white border border-gray-200 rounded-xl shadow-sm;
 }
 
 .card-header {
@@ -25,11 +26,11 @@ body {
 }
 
 .btn-primary {
-  @apply inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50;
+  @apply inline-flex items-center px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors;
+  @apply inline-flex items-center px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors;
 }
 
 .btn-danger {
@@ -37,11 +38,11 @@ body {
 }
 
 .input-field {
-  @apply w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400;
+  @apply w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 placeholder:text-gray-400;
 }
 
 .select-field {
-  @apply w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  @apply w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500;
 }
 
 .label {

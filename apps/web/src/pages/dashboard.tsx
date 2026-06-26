@@ -20,7 +20,7 @@ function TOTPTimer({ period }: { period: number }) {
   return (
     <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
       <div
-        className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000"
+        className="bg-brand-500 h-1.5 rounded-full transition-all duration-1000"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -51,7 +51,7 @@ export function DashboardPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-600 border-t-transparent" />
         </div>
       </Layout>
     );
@@ -84,13 +84,13 @@ export function DashboardPage() {
               <div className="card-body">
                 <div className="flex items-start justify-between mb-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wider truncate">
+                    <p className="text-xs font-medium text-brand-600 uppercase tracking-wider truncate">
                       {entry.issuer}
                     </p>
                     <p className="text-base font-semibold text-gray-900 truncate">{entry.label}</p>
                   </div>
                   {entry.shared && (
-                    <span className="badge bg-blue-50 text-blue-700 ml-2 shrink-0">shared</span>
+                    <span className="badge bg-brand-50 text-brand-700 ml-2 shrink-0">shared</span>
                   )}
                 </div>
 
@@ -100,7 +100,7 @@ export function DashboardPage() {
                   title="Click to copy"
                 >
                   {entry.code ? (
-                    <span className="text-3xl font-mono font-bold tracking-[0.25em] text-blue-600 hover:text-blue-700 transition-colors select-all">
+                    <span className="text-3xl font-mono font-bold tracking-[0.25em] text-brand-600 hover:text-brand-700 transition-colors select-all">
                       {entry.code}
                     </span>
                   ) : (
@@ -137,7 +137,7 @@ export function DashboardPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
                 <p className="text-gray-500 mb-1">No TOTP entries yet</p>
-                <Link to="/add" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <Link to="/add" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
                   Add your first entry
                 </Link>
               </div>

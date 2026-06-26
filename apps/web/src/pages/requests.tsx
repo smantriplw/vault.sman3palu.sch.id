@@ -52,7 +52,7 @@ export function RequestsPage() {
 
         {isLoading && (
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-600 border-t-transparent" />
           </div>
         )}
 
@@ -81,7 +81,7 @@ export function RequestsPage() {
                       <td className="px-4 py-2.5">
                         <span className={`text-xs font-mono font-medium ${
                           log.method === "GET" ? "text-emerald-600" :
-                          log.method === "POST" ? "text-blue-600" :
+                           log.method === "POST" ? "text-brand-600" :
                           log.method === "PUT" ? "text-amber-600" :
                           log.method === "DELETE" ? "text-red-600" : ""
                         }`}>
