@@ -5,6 +5,7 @@ import { db, schema } from "../db/client";
 import { eq } from "drizzle-orm";
 import CIDR from "ip-cidr";
 import { checkRateLimit } from "../lib/rate-limit";
+import { getCookie } from "../lib/cookie";
 
 export function getJWTSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -37,6 +38,11 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
   if (authHeader?.startsWith("Bearer ")) {
     return jwtAuth(c, next, authHeader.slice(7));
+  }
+
+  const sessionCookie = getCookie(c, "session");
+  if (sessionCookie) {
+    return jwtAuth(c, next, sessionCookie);
   }
 
   return c.json({ error: "Missing or invalid authorization header" }, 401);
