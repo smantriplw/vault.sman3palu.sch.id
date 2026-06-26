@@ -1,0 +1,77 @@
+# SMANTIVault — Production compose file for Dokploy
+#
+# Set these environment variables in Dokploy:
+#
+# Required:
+#   ZITADEL_CLIENT_ID
+#   ZITADEL_ISSUER
+#   JWT_SECRET               (64 hex chars = 32 bytes)
+#   ENCRYPTION_KEY           (64 hex chars = 32 bytes)
+#   DATABASE_URL             e.g. postgres://vault:vaultpass@postgres:5432/totp_vault
+#   POSTGRES_PASSWORD
+#
+# Optional:
+#   APP_URL                  default: https://vault.example.com
+#   MAIN_DOMAIN              default: localhost (change to your domain)
+#   API_DOMAIN_URL           leave empty if not using separate API subdomain
+#   COOKIE_DOMAIN            default: .example.com
+#   ENVIRONMENT              default: prod
+#   ZITADEL_REDIRECT_URI     default: https://vault.example.com/api/auth/callback
+#   POSTGRES_USER            default: vault
+#
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: totp_vault
+      POSTGRES_USER: ${POSTGRES_USER:-vault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-vault}
+      interval: 5s
+      retries: 5
+
+  api:
+    image: g9sowwvidixuklw76m6zoncnnpf9x/vault-api:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
+      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID:?Set ZITADEL_CLIENT_ID}
+      ZITADEL_ISSUER: ${ZITADEL_ISSUER:?Set ZITADEL_ISSUER}
+      ZITADEL_REDIRECT_URI: ${ZITADEL_REDIRECT_URI:-https://vault.example.com/api/auth/callback}
+      APP_URL: ${APP_URL:-https://vault.example.com}
+      API_DOMAIN_URL: ${API_DOMAIN_URL:-}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.example.com}
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
+      PORT: "3000"
+
+  web:
+    image: g9sowwvidixuklw76m6zoncnnpf9x/vault-web:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  nginx:
+    image: g9sowwvidixuklw76m6zoncnnpf9x/vault-nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      MAIN_DOMAIN: ${MAIN_DOMAIN:-_}
+      API_DOMAIN_URL: ${API_DOMAIN_URL:-}
+    depends_on:
+      - api
+      - web
+
+volumes:
+  pgdata:
