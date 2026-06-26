@@ -8,13 +8,32 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="bg-slate-800 rounded-t-xl px-8 py-6 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-white/10 mb-3">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-white">SMANTIVault</h1>
-            <p className="text-sm text-slate-400 mt-1">Secure Credential Manager</p>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 100" className="h-14 w-auto mx-auto mb-2" fill="none">
+              <defs>
+                <linearGradient id="neonGradLg" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#06B6D4" />
+                  <stop offset="100%" stop-color="#3B82F6" />
+                </linearGradient>
+                <linearGradient id="darkBaseLg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#1E293B" />
+                  <stop offset="100%" stop-color="#0F172A" />
+                </linearGradient>
+                <filter id="glowLg" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#06B6D4" flood-opacity="0.5" />
+                </filter>
+              </defs>
+              <g transform="translate(15, 10)">
+                <rect x="15" y="15" width="50" height="50" rx="12" fill="url(#darkBaseLg)" transform="rotate(45, 40, 40)" />
+                <path d="M 24 38 L 40 52 L 60 26" fill="none" stroke="url(#neonGradLg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowLg)" />
+                <circle cx="40" cy="62" r="4" fill="#06B6D4" filter="url(#glowLg)" />
+              </g>
+              <text x="110" y="55" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="36" font-weight="900" fill="#FFFFFF" letter-spacing="1">
+                VAULT<tspan fill="#06B6D4">.</tspan>
+              </text>
+              <text x="113" y="77" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#94A3B8" letter-spacing="5">
+                SMAN 3 PALU
+              </text>
+            </svg>
           </div>
 
           <div className="px-8 py-6">
