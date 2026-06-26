@@ -133,4 +133,16 @@ export const api = {
   deleteService: (id: string) => request<{ ok: boolean }>(`/api/admin/services/${id}`, { method: "DELETE" }),
   getRequestLogs: (page = 1) => request<any>(`/api/admin/requests?page=${page}`),
   getRequestStats: () => request<any>("/api/admin/requests/stats"),
+
+  // Transit (Vault-like encryption keys)
+  listTransitKeys: () => request<any[]>("/api/vault/keys"),
+  createTransitKey: (data: { name: string; algorithm?: string; auto_rotate_period?: string }) =>
+    request<any>("/api/vault/keys", { method: "POST", body: JSON.stringify(data) }),
+  getTransitKey: (name: string) => request<any>(`/api/vault/keys/${name}`),
+  rotateTransitKey: (name: string) =>
+    request<any>(`/api/vault/keys/${name}/rotate`, { method: "POST" }),
+  updateTransitKey: (name: string, data: { deletion_allowed?: boolean; auto_rotate_period?: string | null }) =>
+    request<any>(`/api/vault/keys/${name}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTransitKey: (name: string) =>
+    request<{ ok: boolean }>(`/api/vault/keys/${name}`, { method: "DELETE" }),
 };

@@ -54,3 +54,11 @@ export const requestLogsRelations = relations(t.requestLogs, ({ one }) => ({
   apiKey: one(t.apiKeys, { fields: [t.requestLogs.apiKeyId], references: [t.apiKeys.id] }),
   user: one(t.users, { fields: [t.requestLogs.userId], references: [t.users.id] }),
 }));
+
+export const encryptionKeysRelations = relations(t.encryptionKeys, ({ many }) => ({
+  versions: many(t.encryptionKeyVersions),
+}));
+
+export const encryptionKeyVersionsRelations = relations(t.encryptionKeyVersions, ({ one }) => ({
+  key: one(t.encryptionKeys, { fields: [t.encryptionKeyVersions.keyId], references: [t.encryptionKeys.id] }),
+}));

@@ -8,6 +8,7 @@ import secretsRoutes from "./routes/secrets";
 import adminRoutes from "./routes/admin";
 import sharesRoutes from "./routes/shares";
 import secretSharesRoutes from "./routes/secret-shares";
+import transitRoutes from "./routes/transit";
 import { requestLogger } from "./middleware/request-logger";
 
 const app = new Hono();
@@ -33,6 +34,7 @@ app.route("/api/secrets", secretsRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/shares", sharesRoutes);
 app.route("/api/secret-shares", secretSharesRoutes);
+app.route("/api/vault", transitRoutes);
 
 app.get("/health", (c) => c.json({ ok: true }));
 

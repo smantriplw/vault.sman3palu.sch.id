@@ -1,3 +1,5 @@
+import { isVaultLikeConfigured, transitEncrypt, transitDecrypt, isTransitCiphertext } from "./vault-like";
+
 const ALGORITHM = "AES-GCM";
 const NONCE_LENGTH = 12;
 
@@ -13,7 +15,10 @@ function getKey(): Promise<any> {
   return (crypto as any).subtle.importKey("raw", raw, ALGORITHM, false, ["encrypt", "decrypt"]);
 }
 
-export async function encrypt(plaintext: string): Promise<{ ciphertext: string; nonce: string }> {
+export async function encrypt(plaintext: string, keyName?: string): Promise<{ ciphertext: string; nonce: string }> {
+  if (isVaultLikeConfigured()) {
+    return transitEncrypt(plaintext, keyName);
+  }
   const key = await getKey();
   const nonce = (crypto as any).getRandomValues(new Uint8Array(NONCE_LENGTH));
   const encoded = new TextEncoder().encode(plaintext);
@@ -29,7 +34,10 @@ export async function encrypt(plaintext: string): Promise<{ ciphertext: string; 
   };
 }
 
-export async function decrypt(ciphertext: string, nonceB64: string): Promise<string> {
+export async function decrypt(ciphertext: string, nonceB64: string, keyName?: string): Promise<string> {
+  if (isTransitCiphertext(ciphertext)) {
+    return transitDecrypt(ciphertext);
+  }
   const key = await getKey();
   const nonce = Buffer.from(nonceB64, "base64");
   const data = Buffer.from(ciphertext, "base64");
@@ -45,3 +53,5 @@ export async function secureWipe(): Promise<void> {
   const junk = (crypto as any).getRandomValues(new Uint8Array(4096));
   for (let i = 0; i < junk.length; i++) junk[i] = 0;
 }
+
+export { isVaultLikeConfigured } from "./vault-like";

@@ -9,6 +9,7 @@ const navItems = [
 const adminItems = [
   { path: "/services", label: "Services", icon: "settings" },
   { path: "/requests", label: "Requests", icon: "activity" },
+  { path: "/admin-keys", label: "Encryption Keys", icon: "shield" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

@@ -12,7 +12,11 @@ export type SecurityAction =
   | "key.rotated"
   | "key.revoked"
   | "share.created"
-  | "share.revoked";
+  | "share.revoked"
+  | "transit.key.created"
+  | "transit.key.rotated"
+  | "transit.key.deleted"
+  | "transit.key.updated";
 
 export async function logSecurityEvent(
   action: SecurityAction,

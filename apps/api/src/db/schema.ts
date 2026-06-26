@@ -206,6 +206,48 @@ export const secretShares = pgTable(
   })
 );
 
+export const encryptionKeys = pgTable(
+  "encryption_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 255 }).unique().notNull(),
+    algorithm: varchar("algorithm", { length: 50 }).default("aes256-gcm96").notNull(),
+    supportsEncryption: boolean("supports_encryption").default(true).notNull(),
+    supportsDecryption: boolean("supports_decryption").default(true).notNull(),
+    deletionAllowed: boolean("deletion_allowed").default(false).notNull(),
+    autoRotatePeriod: text("auto_rotate_period"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    nameIdx: index("encryption_keys_name_idx").on(table.name),
+  })
+);
+
+export const encryptionKeyVersions = pgTable(
+  "encryption_key_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyId: uuid("key_id")
+      .notNull()
+      .references(() => encryptionKeys.id, { onDelete: "cascade" }),
+    versionNumber: integer("version_number").notNull(),
+    encryptedKeyMaterial: text("encrypted_key_material").notNull(),
+    nonce: text("nonce").notNull(),
+    status: varchar("status", { length: 20 }).default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    keyVersionUnique: index("ekv_key_version_idx").on(table.keyId, table.versionNumber),
+  })
+);
+
 export const auditLog = pgTable(
   "audit_log",
   {

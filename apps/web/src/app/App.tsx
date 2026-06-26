@@ -15,6 +15,7 @@ import { ImportSecretsPage } from "@/pages/import-secrets";
 import { ExportSecretsPage } from "@/pages/export-secrets";
 import { ServicesPage } from "@/pages/services";
 import { RequestsPage } from "@/pages/requests";
+import { AdminKeysPage } from "@/pages/admin-keys";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/secrets/export" element={<ProtectedRoute><ExportSecretsPage /></ProtectedRoute>} />
             <Route path="/services" element={<AdminRoute><ServicesPage /></AdminRoute>} />
             <Route path="/requests" element={<AdminRoute><RequestsPage /></AdminRoute>} />
+            <Route path="/admin-keys" element={<AdminRoute><AdminKeysPage /></AdminRoute>} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
