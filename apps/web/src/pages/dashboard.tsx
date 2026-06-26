@@ -5,6 +5,18 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 
+const CATEGORIES = [
+  "All",
+  "General",
+  "Email",
+  "Social",
+  "Finance",
+  "VPN",
+  "Server",
+  "API",
+  "Other",
+] as const;
+
 function TOTPTimer({
   period,
   onExpire,
@@ -49,10 +61,14 @@ export function DashboardPage() {
   const [revealedCodes, setRevealedCodes] = useState<Record<string, string>>(
     {},
   );
+  const [category, setCategory] = useState("All");
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["entries"],
-    queryFn: api.listEntries,
+    queryKey: ["entries", category],
+    queryFn: () =>
+      api.listEntries(
+        category === "All" ? undefined : { category: category.toLowerCase() },
+      ),
   });
 
   const revealEntry = useCallback(async (id: string, period: number) => {
@@ -123,6 +139,22 @@ export function DashboardPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2 mb-6">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-3 py-1.5 text-sm rounded-full font-medium transition-colors ${
+                category === cat
+                  ? "bg-brand-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {entries.map((entry) => {
             const isRevealed = revealedIds.has(entry.id);
@@ -139,6 +171,11 @@ export function DashboardPage() {
                       <p className="text-xs font-medium text-brand-600 uppercase tracking-wider truncate">
                         {entry.issuer}
                       </p>
+                      {entry.category && (
+                        <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-500 rounded-full uppercase tracking-wider">
+                          {entry.category}
+                        </span>
+                      )}
                       <p className="text-base font-semibold text-gray-900 truncate">
                         {entry.label}
                       </p>

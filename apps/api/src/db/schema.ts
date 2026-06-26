@@ -43,6 +43,7 @@ export const vaultEntries = pgTable("vault_entries", {
   algorithm: varchar("algorithm", { length: 10 }).default("SHA1").notNull(),
   digits: integer("digits").default(6).notNull(),
   period: integer("period").default(30).notNull(),
+  category: varchar("category", { length: 50 }).default("general").notNull(),
   iconUrl: text("icon_url"),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -77,7 +78,7 @@ export const apiKeys = pgTable(
   (table) => ({
     userIdx: index("api_keys_user_idx").on(table.userId),
     keyHashIdx: index("api_keys_key_hash_idx").on(table.keyHash),
-  })
+  }),
 );
 
 export const apiKeyWhitelists = pgTable(
@@ -95,7 +96,29 @@ export const apiKeyWhitelists = pgTable(
   },
   (table) => ({
     apiKeyIdx: index("api_key_whitelists_key_idx").on(table.apiKeyId),
-  })
+  }),
+);
+
+export const apiKeyEntryAccess = pgTable(
+  "api_key_entry_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    apiKeyId: uuid("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => vaultEntries.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    apiKeyEntryUnique: index("akea_key_entry_idx").on(
+      table.apiKeyId,
+      table.entryId,
+    ),
+  }),
 );
 
 export const shares = pgTable(
@@ -116,9 +139,9 @@ export const shares = pgTable(
   (table) => ({
     entryUserUnique: index("shares_entry_user_idx").on(
       table.entryId,
-      table.sharedWithUserId
+      table.sharedWithUserId,
     ),
-  })
+  }),
 );
 
 export const requestLogs = pgTable(
@@ -147,7 +170,7 @@ export const requestLogs = pgTable(
     createdAtIdx: index("request_logs_created_idx").on(table.createdAt),
     apiKeyIdx: index("request_logs_api_key_idx").on(table.apiKeyId),
     userIdx: index("request_logs_user_idx").on(table.userId),
-  })
+  }),
 );
 
 export const secrets = pgTable(
@@ -180,7 +203,7 @@ export const secrets = pgTable(
   (table) => ({
     userIdx: index("secrets_user_idx").on(table.userId),
     categoryIdx: index("secrets_category_idx").on(table.category),
-  })
+  }),
 );
 
 export const secretShares = pgTable(
@@ -201,9 +224,31 @@ export const secretShares = pgTable(
   (table) => ({
     secretUserUnique: index("secret_shares_secret_user_idx").on(
       table.secretId,
-      table.sharedWithUserId
+      table.sharedWithUserId,
     ),
-  })
+  }),
+);
+
+export const apiKeySecretAccess = pgTable(
+  "api_key_secret_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    apiKeyId: uuid("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    secretId: uuid("secret_id")
+      .notNull()
+      .references(() => secrets.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    apiKeySecretUnique: index("aksa_key_secret_idx").on(
+      table.apiKeyId,
+      table.secretId,
+    ),
+  }),
 );
 
 export const encryptionKeys = pgTable(
@@ -211,7 +256,9 @@ export const encryptionKeys = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: varchar("name", { length: 255 }).unique().notNull(),
-    algorithm: varchar("algorithm", { length: 50 }).default("aes256-gcm96").notNull(),
+    algorithm: varchar("algorithm", { length: 50 })
+      .default("aes256-gcm96")
+      .notNull(),
     supportsEncryption: boolean("supports_encryption").default(true).notNull(),
     supportsDecryption: boolean("supports_decryption").default(true).notNull(),
     deletionAllowed: boolean("deletion_allowed").default(false).notNull(),
@@ -225,7 +272,7 @@ export const encryptionKeys = pgTable(
   },
   (table) => ({
     nameIdx: index("encryption_keys_name_idx").on(table.name),
-  })
+  }),
 );
 
 export const encryptionKeyVersions = pgTable(
@@ -244,8 +291,11 @@ export const encryptionKeyVersions = pgTable(
       .notNull(),
   },
   (table) => ({
-    keyVersionUnique: index("ekv_key_version_idx").on(table.keyId, table.versionNumber),
-  })
+    keyVersionUnique: index("ekv_key_version_idx").on(
+      table.keyId,
+      table.versionNumber,
+    ),
+  }),
 );
 
 export const auditLog = pgTable(
@@ -265,5 +315,5 @@ export const auditLog = pgTable(
   (table) => ({
     createdAtIdx: index("audit_log_created_idx").on(table.createdAt),
     userIdx: index("audit_log_user_idx").on(table.userId),
-  })
+  }),
 );

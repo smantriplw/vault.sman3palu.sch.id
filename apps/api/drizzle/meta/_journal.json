@@ -8,6 +8,13 @@
       "when": 1782452955653,
       "tag": "0000_large_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782466577366,
+      "tag": "0001_watery_thunderbird",
+      "breakpoints": true
     }
   ]
 }

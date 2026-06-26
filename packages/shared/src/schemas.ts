@@ -21,6 +21,30 @@ export type TOTPAlgorithm = z.infer<typeof TOTPAlgorithm>;
 export const AuthType = z.enum(["api_key", "jwt"]);
 export type AuthType = z.infer<typeof AuthType>;
 
+export const EntryCategory = z.enum([
+  "general",
+  "email",
+  "social",
+  "finance",
+  "vpn",
+  "server",
+  "api",
+  "other",
+]);
+export type EntryCategory = z.infer<typeof EntryCategory>;
+
+export const SecretCategory = z.enum([
+  "general",
+  "email",
+  "database",
+  "api_key",
+  "ssh",
+  "social",
+  "finance",
+  "server",
+]);
+export type SecretCategory = z.infer<typeof SecretCategory>;
+
 export const CreateUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
@@ -34,6 +58,7 @@ export const CreateEntrySchema = z.object({
   algorithm: TOTPAlgorithm.default("SHA1"),
   digits: z.number().int().min(4).max(10).default(6),
   period: z.number().int().min(10).max(120).default(30),
+  category: EntryCategory.default("general"),
   iconUrl: z.string().url().optional(),
 });
 
@@ -42,7 +67,10 @@ export const UpdateEntrySchema = CreateEntrySchema.partial().omit({
 });
 
 export const ImportEntriesSchema = z.object({
-  uris: z.array(z.string().regex(/^otpauth:\/\/totp\//)).min(1).max(50),
+  uris: z
+    .array(z.string().regex(/^otpauth:\/\/totp\//))
+    .min(1)
+    .max(50),
 });
 
 export const CreateApiKeySchema = z.object({
@@ -55,7 +83,7 @@ export const CreateApiKeySchema = z.object({
       z.object({
         cidr: z.string(),
         description: z.string().max(255).optional(),
-      })
+      }),
     )
     .optional(),
 });
@@ -73,18 +101,6 @@ export const AuthUserSchema = z.object({
 });
 
 export type AuthUser = z.infer<typeof AuthUserSchema>;
-
-export const SecretCategory = z.enum([
-  "general",
-  "email",
-  "database",
-  "api_key",
-  "ssh",
-  "social",
-  "finance",
-  "server",
-]);
-export type SecretCategory = z.infer<typeof SecretCategory>;
 
 export const FieldSchema = z.object({
   key: z.string(),

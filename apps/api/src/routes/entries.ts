@@ -1,12 +1,20 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
 import { encrypt, decrypt, secureWipe } from "../lib/encryption";
 import { generateTOTP, parseOTPURI, buildOTPURI } from "../lib/totp";
-import { decodeGoogleAuthMigration, extractDataFromMigrationURI, buildOtpauthURI } from "../lib/google-auth-import";
-import { CreateEntrySchema, UpdateEntrySchema, ImportEntriesSchema } from "@vault/shared";
+import {
+  decodeGoogleAuthMigration,
+  extractDataFromMigrationURI,
+  buildOtpauthURI,
+} from "../lib/google-auth-import";
+import {
+  CreateEntrySchema,
+  UpdateEntrySchema,
+  ImportEntriesSchema,
+} from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
 import { logSecurityEvent } from "../lib/security-audit";
 
@@ -16,6 +24,41 @@ entries.use("*", authMiddleware);
 
 entries.get("/", async (c) => {
   const auth = c.get("auth");
+
+  // If API key with restricted access, only return allowed entries
+  if (auth.authType === "api_key" && auth.apiKeyId) {
+    const access = await db.query.apiKeyEntryAccess.findMany({
+      where: eq(schema.apiKeyEntryAccess.apiKeyId, auth.apiKeyId),
+    });
+    if (access.length > 0) {
+      const allowedIds = access.map((a) => a.entryId);
+      const entries = await db.query.vaultEntries.findMany({
+        where: and(
+          eq(schema.vaultEntries.userId, auth.userId),
+          inArray(schema.vaultEntries.id, allowedIds),
+        ),
+        orderBy: desc(schema.vaultEntries.sortOrder),
+      });
+      const result = entries.map((entry) => ({
+        id: entry.id,
+        issuer: entry.issuer,
+        label: entry.label,
+        algorithm: entry.algorithm,
+        digits: entry.digits,
+        period: entry.period,
+        category: entry.category,
+        iconUrl: entry.iconUrl,
+        sortOrder: entry.sortOrder,
+        code: null,
+        shared: false,
+        canEdit: true,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+      }));
+      return c.json(result);
+    }
+  }
+
   const ownEntries = await db.query.vaultEntries.findMany({
     where: eq(schema.vaultEntries.userId, auth.userId),
     orderBy: desc(schema.vaultEntries.sortOrder),
@@ -35,13 +78,19 @@ entries.get("/", async (c) => {
     })),
   ];
 
-  const result = allEntries.map((entry) => ({
+  const category = c.req.query("category");
+  const filtered = category
+    ? allEntries.filter((e) => e.category === category)
+    : allEntries;
+
+  const result = filtered.map((entry) => ({
     id: entry.id,
     issuer: entry.issuer,
     label: entry.label,
     algorithm: entry.algorithm,
     digits: entry.digits,
     period: entry.period,
+    category: entry.category,
     iconUrl: entry.iconUrl,
     sortOrder: entry.sortOrder,
     code: null,
@@ -65,13 +114,26 @@ entries.post("/:id/reveal", async (c) => {
   if (!entry) throw new HTTPException(404, { message: "Entry not found" });
 
   if (entry.userId !== auth.userId) {
-    const share = await db.query.shares.findFirst({
-      where: and(
-        eq(schema.shares.entryId, id),
-        eq(schema.shares.sharedWithUserId, auth.userId)
-      ),
-    });
-    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    if (auth.authType === "api_key" && auth.apiKeyId) {
+      const access = await db.query.apiKeyEntryAccess.findFirst({
+        where: and(
+          eq(schema.apiKeyEntryAccess.apiKeyId, auth.apiKeyId),
+          eq(schema.apiKeyEntryAccess.entryId, id),
+        ),
+      });
+      if (!access)
+        throw new HTTPException(403, {
+          message: "Service not authorized for this entry",
+        });
+    } else {
+      const share = await db.query.shares.findFirst({
+        where: and(
+          eq(schema.shares.entryId, id),
+          eq(schema.shares.sharedWithUserId, auth.userId),
+        ),
+      });
+      if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    }
   }
 
   const secret = await decrypt(entry.encryptedSecret, entry.encryptionNonce);
@@ -82,7 +144,11 @@ entries.post("/:id/reveal", async (c) => {
     period: entry.period,
   });
 
-  await logSecurityEvent("entry.revealed", { entryId: id, issuer: entry.issuer }, auth.userId);
+  await logSecurityEvent(
+    "entry.revealed",
+    { entryId: id, issuer: entry.issuer },
+    auth.userId,
+  );
 
   return c.json({ code });
 });
@@ -104,11 +170,14 @@ entries.get("/export/all", requireScope("vault:export"), async (c) => {
         issuer: e.issuer,
         label: e.label,
       });
-    })
+    }),
   );
 
-  await logSecurityEvent("export.downloaded",
-    { type: "entries", count: exported.length }, auth.userId);
+  await logSecurityEvent(
+    "export.downloaded",
+    { type: "entries", count: exported.length },
+    auth.userId,
+  );
 
   return c.json({ uris: exported });
 });
@@ -124,13 +193,26 @@ entries.get("/:id", async (c) => {
   if (!entry) throw new HTTPException(404, { message: "Entry not found" });
 
   if (entry.userId !== auth.userId) {
-    const share = await db.query.shares.findFirst({
-      where: and(
-        eq(schema.shares.entryId, id),
-        eq(schema.shares.sharedWithUserId, auth.userId)
-      ),
-    });
-    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    if (auth.authType === "api_key" && auth.apiKeyId) {
+      const access = await db.query.apiKeyEntryAccess.findFirst({
+        where: and(
+          eq(schema.apiKeyEntryAccess.apiKeyId, auth.apiKeyId),
+          eq(schema.apiKeyEntryAccess.entryId, id),
+        ),
+      });
+      if (!access)
+        throw new HTTPException(403, {
+          message: "Service not authorized for this entry",
+        });
+    } else {
+      const share = await db.query.shares.findFirst({
+        where: and(
+          eq(schema.shares.entryId, id),
+          eq(schema.shares.sharedWithUserId, auth.userId),
+        ),
+      });
+      if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    }
   }
 
   const secret = await decrypt(entry.encryptedSecret, entry.encryptionNonce);
@@ -150,6 +232,7 @@ entries.get("/:id", async (c) => {
     period: entry.period,
     iconUrl: entry.iconUrl,
     sortOrder: entry.sortOrder,
+    category: entry.category,
     code,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
@@ -174,6 +257,7 @@ entries.post("/", async (c) => {
       algorithm: parsed.algorithm,
       digits: parsed.digits,
       period: parsed.period,
+      category: parsed.category,
       iconUrl: parsed.iconUrl,
     })
     .returning();
@@ -192,11 +276,21 @@ entries.put("/:id", async (c) => {
   });
 
   if (!entry) throw new HTTPException(404, { message: "Entry not found" });
-  if (entry.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
+  if (entry.userId !== auth.userId)
+    throw new HTTPException(403, { message: "Forbidden" });
+
+  const update: Record<string, any> = { updatedAt: new Date() };
+  if (parsed.issuer) update.issuer = parsed.issuer;
+  if (parsed.label) update.label = parsed.label;
+  if (parsed.algorithm) update.algorithm = parsed.algorithm;
+  if (parsed.digits) update.digits = parsed.digits;
+  if (parsed.period) update.period = parsed.period;
+  if (parsed.category) update.category = parsed.category;
+  if (parsed.iconUrl !== undefined) update.iconUrl = parsed.iconUrl;
 
   await db
     .update(schema.vaultEntries)
-    .set({ ...parsed, updatedAt: new Date() })
+    .set(update)
     .where(eq(schema.vaultEntries.id, id));
 
   return c.json({ ok: true });
@@ -211,13 +305,18 @@ entries.delete("/:id", async (c) => {
   });
 
   if (!entry) throw new HTTPException(404, { message: "Entry not found" });
-  if (entry.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
+  if (entry.userId !== auth.userId)
+    throw new HTTPException(403, { message: "Forbidden" });
 
   // ISO 27002 8.10 — secure wipe before delete
   await secureWipe();
   await db.delete(schema.vaultEntries).where(eq(schema.vaultEntries.id, id));
 
-  await logSecurityEvent("entry.deleted", { entryId: id, issuer: entry.issuer }, auth.userId);
+  await logSecurityEvent(
+    "entry.deleted",
+    { entryId: id, issuer: entry.issuer },
+    auth.userId,
+  );
   return c.json({ ok: true });
 });
 
@@ -248,7 +347,7 @@ entries.post("/import", requireScope("entries:write"), async (c) => {
       } catch (e: any) {
         return { success: false, error: e.message, uri };
       }
-    })
+    }),
   );
 
   return c.json({ imported: results.filter((r) => r.success).length, results });
@@ -294,7 +393,12 @@ entries.post("/import-google-auth", async (c) => {
   const parsed = ImportGoogleAuthSchema.parse(body);
   const dataB64 = extractPayload(c, parsed);
   const payload = decodeGoogleAuthMigration(dataB64);
-  const results: Array<{ success: boolean; id?: string; error?: string; name?: string }> = [];
+  const results: Array<{
+    success: boolean;
+    id?: string;
+    error?: string;
+    name?: string;
+  }> = [];
 
   for (const account of payload.otpParameters) {
     try {
@@ -311,6 +415,7 @@ entries.post("/import-google-auth", async (c) => {
           algorithm: account.algorithm || "SHA1",
           digits: account.digits || 6,
           period: 30,
+          category: "general",
         })
         .returning();
 

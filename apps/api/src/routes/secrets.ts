@@ -1,9 +1,13 @@
 import { Hono } from "hono";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
 import { encrypt, decrypt, secureWipe } from "../lib/encryption";
-import { CreateSecretSchema, UpdateSecretSchema, UpdateSecretDataSchema } from "@vault/shared";
+import {
+  CreateSecretSchema,
+  UpdateSecretSchema,
+  UpdateSecretDataSchema,
+} from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
 import { logSecurityEvent } from "../lib/security-audit";
 
@@ -13,6 +17,41 @@ secrets.use("*", authMiddleware);
 
 secrets.get("/", async (c) => {
   const auth = c.get("auth");
+  const category = c.req.query("category");
+
+  // If API key with restricted access, only return allowed secrets
+  if (auth.authType === "api_key" && auth.apiKeyId) {
+    const access = await db.query.apiKeySecretAccess.findMany({
+      where: eq(schema.apiKeySecretAccess.apiKeyId, auth.apiKeyId),
+    });
+    if (access.length > 0) {
+      const allowedIds = access.map((a) => a.secretId);
+      const own = await db.query.secrets.findMany({
+        where: and(
+          eq(schema.secrets.userId, auth.userId),
+          inArray(schema.secrets.id, allowedIds),
+        ),
+        orderBy: desc(schema.secrets.sortOrder),
+      });
+      let result = own;
+      if (category) result = result.filter((s) => s.category === category);
+      return c.json(
+        result.map((s) => ({
+          id: s.id,
+          name: s.name,
+          category: s.category,
+          data: null,
+          fieldsSchema: s.fieldsSchema,
+          iconUrl: s.iconUrl,
+          sortOrder: s.sortOrder,
+          shared: false,
+          canEdit: true,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        })),
+      );
+    }
+  }
 
   const own = await db.query.secrets.findMany({
     where: eq(schema.secrets.userId, auth.userId),
@@ -33,7 +72,9 @@ secrets.get("/", async (c) => {
     })),
   ];
 
-  const result = all.map((secret) => ({
+  const filtered = category ? all.filter((s) => s.category === category) : all;
+
+  const result = filtered.map((secret) => ({
     id: secret.id,
     name: secret.name,
     category: secret.category,
@@ -61,18 +102,37 @@ secrets.post("/:id/reveal", async (c) => {
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
 
   if (secret.userId !== auth.userId) {
-    const share = await db.query.secretShares.findFirst({
-      where: and(
-        eq(schema.secretShares.secretId, id),
-        eq(schema.secretShares.sharedWithUserId, auth.userId)
-      ),
-    });
-    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    if (auth.authType === "api_key" && auth.apiKeyId) {
+      const access = await db.query.apiKeySecretAccess.findFirst({
+        where: and(
+          eq(schema.apiKeySecretAccess.apiKeyId, auth.apiKeyId),
+          eq(schema.apiKeySecretAccess.secretId, id),
+        ),
+      });
+      if (!access)
+        throw new HTTPException(403, {
+          message: "Service not authorized for this secret",
+        });
+    } else {
+      const share = await db.query.secretShares.findFirst({
+        where: and(
+          eq(schema.secretShares.secretId, id),
+          eq(schema.secretShares.sharedWithUserId, auth.userId),
+        ),
+      });
+      if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    }
   }
 
-  const data = JSON.parse(await decrypt(secret.encryptedData, secret.encryptionNonce));
+  const data = JSON.parse(
+    await decrypt(secret.encryptedData, secret.encryptionNonce),
+  );
 
-  await logSecurityEvent("secret.revealed", { secretId: id, name: secret.name }, auth.userId);
+  await logSecurityEvent(
+    "secret.revealed",
+    { secretId: id, name: secret.name },
+    auth.userId,
+  );
 
   return c.json({ data });
 });
@@ -88,16 +148,31 @@ secrets.get("/:id", async (c) => {
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
 
   if (secret.userId !== auth.userId) {
-    const share = await db.query.secretShares.findFirst({
-      where: and(
-        eq(schema.secretShares.secretId, id),
-        eq(schema.secretShares.sharedWithUserId, auth.userId)
-      ),
-    });
-    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    if (auth.authType === "api_key" && auth.apiKeyId) {
+      const access = await db.query.apiKeySecretAccess.findFirst({
+        where: and(
+          eq(schema.apiKeySecretAccess.apiKeyId, auth.apiKeyId),
+          eq(schema.apiKeySecretAccess.secretId, id),
+        ),
+      });
+      if (!access)
+        throw new HTTPException(403, {
+          message: "Service not authorized for this secret",
+        });
+    } else {
+      const share = await db.query.secretShares.findFirst({
+        where: and(
+          eq(schema.secretShares.secretId, id),
+          eq(schema.secretShares.sharedWithUserId, auth.userId),
+        ),
+      });
+      if (!share) throw new HTTPException(403, { message: "Forbidden" });
+    }
   }
 
-  const data = JSON.parse(await decrypt(secret.encryptedData, secret.encryptionNonce));
+  const data = JSON.parse(
+    await decrypt(secret.encryptedData, secret.encryptionNonce),
+  );
 
   return c.json({
     id: secret.id,
@@ -120,11 +195,13 @@ secrets.post("/", async (c) => {
   const plaintext = JSON.stringify(parsed.data);
   const { ciphertext, nonce } = await encrypt(plaintext);
 
-  const fieldsSchema = parsed.fields_schema ?? Object.keys(parsed.data).map((key) => ({
-    key,
-    label: key.charAt(0).toUpperCase() + key.slice(1),
-    type: "text" as const,
-  }));
+  const fieldsSchema =
+    parsed.fields_schema ??
+    Object.keys(parsed.data).map((key) => ({
+      key,
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      type: "text" as const,
+    }));
 
   const [secret] = await db
     .insert(schema.secrets)
@@ -153,7 +230,8 @@ secrets.put("/:id", async (c) => {
   });
 
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
-  if (secret.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
+  if (secret.userId !== auth.userId)
+    throw new HTTPException(403, { message: "Forbidden" });
 
   const update: any = { updatedAt: new Date() };
   if (parsed.name) update.name = parsed.name;
@@ -176,14 +254,19 @@ secrets.put("/:id/data", async (c) => {
   });
 
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
-  if (secret.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
+  if (secret.userId !== auth.userId)
+    throw new HTTPException(403, { message: "Forbidden" });
 
   const plaintext = JSON.stringify(parsed.data);
   const { ciphertext, nonce } = await encrypt(plaintext);
 
   await db
     .update(schema.secrets)
-    .set({ encryptedData: ciphertext, encryptionNonce: nonce, updatedAt: new Date() })
+    .set({
+      encryptedData: ciphertext,
+      encryptionNonce: nonce,
+      updatedAt: new Date(),
+    })
     .where(eq(schema.secrets.id, id));
 
   return c.json({ ok: true });
@@ -198,13 +281,18 @@ secrets.delete("/:id", async (c) => {
   });
 
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
-  if (secret.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
+  if (secret.userId !== auth.userId)
+    throw new HTTPException(403, { message: "Forbidden" });
 
   // ISO 27002 8.10 — secure wipe before delete
   await secureWipe();
   await db.delete(schema.secrets).where(eq(schema.secrets.id, id));
 
-  await logSecurityEvent("secret.deleted", { secretId: id, name: secret.name }, auth.userId);
+  await logSecurityEvent(
+    "secret.deleted",
+    { secretId: id, name: secret.name },
+    auth.userId,
+  );
   return c.json({ ok: true });
 });
 
@@ -219,11 +307,13 @@ secrets.post("/import", requireScope("secrets:write"), async (c) => {
         const plaintext = JSON.stringify(item.data);
         const { ciphertext, nonce } = await encrypt(plaintext);
 
-        const fieldsSchema = item.fields_schema ?? Object.keys(item.data).map((key) => ({
-          key,
-          label: key.charAt(0).toUpperCase() + key.slice(1),
-          type: "text" as const,
-        }));
+        const fieldsSchema =
+          item.fields_schema ??
+          Object.keys(item.data).map((key) => ({
+            key,
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+            type: "text" as const,
+          }));
 
         const [secret] = await db
           .insert(schema.secrets)
@@ -242,7 +332,7 @@ secrets.post("/import", requireScope("secrets:write"), async (c) => {
       } catch (e: any) {
         return { success: false, error: e.message, name: item.name };
       }
-    })
+    }),
   );
 
   return c.json({ imported: results.filter((r) => r.success).length, results });
@@ -257,18 +347,23 @@ secrets.get("/export/all", requireScope("vault:export"), async (c) => {
 
   const exported = await Promise.all(
     own.map(async (s) => {
-      const data = JSON.parse(await decrypt(s.encryptedData, s.encryptionNonce));
+      const data = JSON.parse(
+        await decrypt(s.encryptedData, s.encryptionNonce),
+      );
       return {
         name: s.name,
         category: s.category,
         data,
         fields_schema: s.fieldsSchema,
       };
-    })
+    }),
   );
 
-  await logSecurityEvent("export.downloaded",
-    { type: "secrets", count: exported.length }, auth.userId);
+  await logSecurityEvent(
+    "export.downloaded",
+    { type: "secrets", count: exported.length },
+    auth.userId,
+  );
 
   return c.json(exported);
 });
