@@ -390,10 +390,66 @@ admin.delete("/visibility/secrets/:secretId/:userId", async (c) => {
 
 admin.get("/users", async (c) => {
   const users = await db.query.users.findMany({
-    columns: { id: true, email: true, name: true, role: true },
+    columns: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuspended: true,
+      createdAt: true,
+      avatarUrl: true,
+    },
     orderBy: desc(schema.users.createdAt),
   });
   return c.json(users);
+});
+
+admin.put("/users/:id/role", async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+  const body = await c.req.json();
+  const parsed = z.object({ role: z.enum(["user", "admin"]) }).parse(body);
+
+  if (id === auth.userId)
+    throw new HTTPException(400, { message: "Cannot change your own role" });
+
+  await db
+    .update(schema.users)
+    .set({ role: parsed.role, updatedAt: new Date() })
+    .where(eq(schema.users.id, id));
+  return c.json({ ok: true });
+});
+
+admin.post("/users/:id/suspend", async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+  if (id === auth.userId)
+    throw new HTTPException(400, { message: "Cannot suspend yourself" });
+
+  await db
+    .update(schema.users)
+    .set({ isSuspended: true, updatedAt: new Date() })
+    .where(eq(schema.users.id, id));
+  return c.json({ ok: true });
+});
+
+admin.post("/users/:id/unsuspend", async (c) => {
+  const id = c.req.param("id");
+  await db
+    .update(schema.users)
+    .set({ isSuspended: false, updatedAt: new Date() })
+    .where(eq(schema.users.id, id));
+  return c.json({ ok: true });
+});
+
+admin.delete("/users/:id", async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+  if (id === auth.userId)
+    throw new HTTPException(400, { message: "Cannot delete yourself" });
+
+  await db.delete(schema.users).where(eq(schema.users.id, id));
+  return c.json({ ok: true });
 });
 
 // ─── Request Logs (filtered + paginated) ──────────────────

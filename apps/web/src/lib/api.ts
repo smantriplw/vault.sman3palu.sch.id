@@ -267,9 +267,32 @@ export const api = {
   },
   getRequestStats: () => request<any>("/api/admin/requests/stats"),
   listUsers: () =>
-    request<Array<{ id: string; email: string; name: string; role: string }>>(
-      "/api/admin/users",
-    ),
+    request<
+      Array<{
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        isSuspended: boolean;
+        createdAt: string;
+        avatarUrl: string | null;
+      }>
+    >("/api/admin/users"),
+  updateUserRole: (id: string, role: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    }),
+  suspendUser: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}/suspend`, {
+      method: "POST",
+    }),
+  unsuspendUser: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}/unsuspend`, {
+      method: "POST",
+    }),
+  deleteUser: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" }),
 
   // Service access restriction
   getServiceAccess: (id: string) =>

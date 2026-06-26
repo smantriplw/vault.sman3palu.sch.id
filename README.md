@@ -10,14 +10,20 @@ Built for internal use at **SMAN 3 Palu** — single sign-on with institutional 
 
 - **TOTP 2FA Dashboard** — generate time-based codes from stored secrets with auto-refresh countdown timer
 - **Secrets Vault** — store credentials, API keys, database passwords; category filters, field-level reveal/copy
+- **Entry Categories** — organize entries and secrets into categories for easier management
+- **Per-item Reveal** — reveal TOTP codes and secret values one at a time with confirmation dialog
 - **ZITADEL SSO** — PKCE OIDC flow (no client secret), auto-provisions users on first login
 - **AES-256-GCM Encryption** — all secrets encrypted at rest using `@oslojs/crypto`
+- **Built-in Transit Key Encryption** — Vault-like encryption engine compatible with HashiCorp Vault's encryption-as-a-service pattern; encrypt/decrypt via API (no Vault cluster needed)
 - **API Key System** — create services with scoped access (`vk_*_` prefixed keys, SHA-256 hashed)
 - **IP Whitelist** — CIDR-based restrictions per service
+- **Service Access Restrictions** — control which users can access specific API services
 - **Rate Limiting** — PostgreSQL-based, per-service configurable
 - **Audit Log** — full request logging with method, path, status, auth type, duration, IP
-- **Google Authenticator Migration Import** — import TOTP accounts directly from Google Authenticator's QR export (protobuf decoder built-in, no libraries required)
+- **Request Logs Filtering & Pagination** — filter audit logs by IP, method, status, service, and time period with paginated sortable results
+- **Google Authenticator Import** — import TOTP accounts via QR scanner or migration file (protobuf decoder built-in, no libraries required)
 - **Import/Export** — bulk import/export via otpauth:// URIs (TOTP), QR migration (Google Auth), or JSON (secrets)
+- **Encrypted Export with Passphrase** — export vault data encrypted with a user-provided passphrase
 - **Sharing** — share entries and secrets with other users
 - **Security Headers** — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 - **Session Management** — JWT sessions (1h expiry) with automatic refresh (30d refresh token, 45min refresh interval)
@@ -25,18 +31,19 @@ Built for internal use at **SMAN 3 Palu** — single sign-on with institutional 
 - **Security Audit Logging** — typed security events for decrypt failures, key rotation, exports, shares, brute-force blocks
 - **Secure Wipe** — overwrite decrypted secrets in memory before deletion (ISO 27002 8.10)
 - **Key Rotation Script** — rotate JWT + encryption keys with documented procedure
+- **User Management** — suspend, unsuspend, and delete users from the admin panel
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| **Runtime** | Bun |
-| **API** | Hono |
-| **Frontend** | React + Vite + Tailwind CSS |
-| **Database** | PostgreSQL 16 (Drizzle ORM) |
-| **Auth** | ZITADEL OIDC (Arctic) |
+| Layer          | Technology                     |
+| -------------- | ------------------------------ |
+| **Runtime**    | Bun                            |
+| **API**        | Hono                           |
+| **Frontend**   | React + Vite + Tailwind CSS    |
+| **Database**   | PostgreSQL 16 (Drizzle ORM)    |
+| **Auth**       | ZITADEL OIDC (Arctic)          |
 | **Encryption** | AES-256-GCM (`@oslojs/crypto`) |
-| **Infra** | Docker Compose + Nginx |
+| **Infra**      | Docker Compose + Nginx         |
 
 ## Quick Start
 
@@ -174,43 +181,64 @@ Both `https://vault.example.com/api/...` and `https://api.vault.example.com/...`
 
 ## API Overview
 
-| Endpoint | Auth | Description |
-|---|---|---|
-| `GET /health` | — | Health check |
-| `GET /api/auth/login` | — | Initiate ZITADEL OIDC login |
-| `GET /api/auth/callback` | — | OIDC callback handler |
-| `GET /api/auth/me` | JWT | Current user info |
-| `POST /api/auth/logout` | JWT | Clear session |
-| | | |
-| `GET /api/entries` | JWT/AK | List TOTP entries (with codes) |
-| `POST /api/entries` | JWT | Create TOTP entry |
-| `GET /api/entries/:id` | JWT | Get entry metadata |
-| `PUT /api/entries/:id` | JWT | Update entry |
-| `DELETE /api/entries/:id` | JWT | Delete entry |
-| `POST /api/entries/import` | JWT | Bulk import otpauth URIs |
-| `POST /api/entries/import-google-auth` | JWT | Import Google Authenticator migration data |
-| `POST /api/entries/preview-google-auth` | JWT | Preview Google Authenticator migration (no save) |
-| `GET /api/entries/export` | JWT/AK | Export all as URIs |
-| | | |
-| `GET /api/secrets` | JWT/AK | List secrets |
-| `POST /api/secrets` | JWT | Create secret |
-| `GET /api/secrets/:id` | JWT | Get secret (decrypted) |
-| `PUT /api/secrets/:id` | JWT | Update metadata |
-| `PUT /api/secrets/:id/data` | JWT | Update encrypted data |
-| `DELETE /api/secrets/:id` | JWT | Delete secret |
-| `POST /api/secrets/import` | JWT | Bulk import JSON |
-| `GET /api/secrets/export` | JWT/AK | Export all (decrypted) |
-| | | |
-| `GET /api/shares` | JWT | List incoming shares |
-| `POST /api/entries/:id/share` | JWT | Share TOTP entry |
-| `DELETE /api/shares/:id` | JWT | Revoke share |
-| | | |
-| `GET /api/admin/services` | JWT(A) | List API services |
-| `POST /api/admin/services` | JWT(A) | Create service (+ key) |
-| `DELETE /api/admin/services/:id` | JWT(A) | Revoke service |
-| `POST /api/admin/services/:id/rotate` | JWT(A) | Rotate key (1h grace) |
-| `GET /api/admin/requests` | JWT(A) | Request audit logs |
-| `GET /api/admin/requests/stats` | JWT(A) | Aggregate stats |
+| Endpoint                                           | Auth   | Description                                      |
+| -------------------------------------------------- | ------ | ------------------------------------------------ |
+| `GET /health`                                      | —      | Health check                                     |
+| `GET /api/auth/login`                              | —      | Initiate ZITADEL OIDC login                      |
+| `GET /api/auth/callback`                           | —      | OIDC callback handler                            |
+| `GET /api/auth/me`                                 | JWT    | Current user info                                |
+| `POST /api/auth/logout`                            | JWT    | Clear session                                    |
+|                                                    |        |                                                  |
+| `GET /api/entries`                                 | JWT/AK | List TOTP entries (with codes)                   |
+| `POST /api/entries`                                | JWT    | Create TOTP entry                                |
+| `GET /api/entries/:id`                             | JWT    | Get entry metadata                               |
+| `PUT /api/entries/:id`                             | JWT    | Update entry                                     |
+| `DELETE /api/entries/:id`                          | JWT    | Delete entry                                     |
+| `POST /api/entries/import`                         | JWT    | Bulk import otpauth URIs                         |
+| `POST /api/entries/import-google-auth`             | JWT    | Import Google Authenticator migration data       |
+| `POST /api/entries/preview-google-auth`            | JWT    | Preview Google Authenticator migration (no save) |
+| `GET /api/entries/export`                          | JWT/AK | Export all as URIs                               |
+| `POST /api/entries/:id/reveal`                     | JWT    | Reveal TOTP code                                 |
+|                                                    |        |                                                  |
+| `GET /api/secrets`                                 | JWT/AK | List secrets                                     |
+| `POST /api/secrets`                                | JWT    | Create secret                                    |
+| `GET /api/secrets/:id`                             | JWT    | Get secret (decrypted)                           |
+| `PUT /api/secrets/:id`                             | JWT    | Update metadata                                  |
+| `PUT /api/secrets/:id/data`                        | JWT    | Update encrypted data                            |
+| `DELETE /api/secrets/:id`                          | JWT    | Delete secret                                    |
+| `POST /api/secrets/import`                         | JWT    | Bulk import JSON                                 |
+| `GET /api/secrets/export`                          | JWT/AK | Export all (decrypted)                           |
+| `POST /api/secrets/:id/reveal`                     | JWT    | Reveal secret data                               |
+|                                                    |        |                                                  |
+| `GET /api/shares`                                  | JWT    | List incoming shares                             |
+| `POST /api/entries/:id/share`                      | JWT    | Share TOTP entry                                 |
+| `DELETE /api/shares/:id`                           | JWT    | Revoke share                                     |
+|                                                    |        |                                                  |
+| `GET /api/vault/keys`                              | JWT(A) | List encryption keys                             |
+| `POST /api/vault/keys`                             | JWT(A) | Create key                                       |
+| `POST /api/vault/keys/:name/rotate`                | JWT(A) | Rotate key                                       |
+| `POST /api/vault/encrypt/:name`                    | JWT/AK | Encrypt plaintext                                |
+| `POST /api/vault/decrypt/:name`                    | JWT/AK | Decrypt ciphertext                               |
+|                                                    |        |                                                  |
+| `GET /api/admin/services`                          | JWT(A) | List API services                                |
+| `POST /api/admin/services`                         | JWT(A) | Create service (+ key)                           |
+| `DELETE /api/admin/services/:id`                   | JWT(A) | Revoke service                                   |
+| `POST /api/admin/services/:id/rotate`              | JWT(A) | Rotate key (1h grace)                            |
+| `GET /api/admin/requests`                          | JWT(A) | Request audit logs                               |
+| `GET /api/admin/requests/stats`                    | JWT(A) | Aggregate stats                                  |
+| `GET /api/admin/users`                             | JWT(A) | List users                                       |
+| `PUT /api/admin/users/:id/role`                    | JWT(A) | Change user role                                 |
+| `POST /api/admin/users/:id/suspend`                | JWT(A) | Suspend user                                     |
+| `POST /api/admin/users/:id/unsuspend`              | JWT(A) | Unsuspend user                                   |
+| `DELETE /api/admin/users/:id`                      | JWT(A) | Delete user                                      |
+| `GET /api/admin/services/:id/access`               | JWT(A) | List service access                              |
+| `PUT /api/admin/services/:id/access`               | JWT(A) | Set service access                               |
+| `GET /api/admin/visibility/entries/:id`            | JWT(A) | List entry viewers                               |
+| `POST /api/admin/visibility/entries/:id`           | JWT(A) | Grant entry access                               |
+| `DELETE /api/admin/visibility/entries/:id/:userId` | JWT(A) | Revoke entry access                              |
+| `GET /api/admin/visibility/secrets/:id`            | JWT(A) | List secret viewers                              |
+| `POST /api/admin/visibility/secrets/:id`           | JWT(A) | Grant secret access                              |
+| `DELETE /api/admin/visibility/secrets/:id/:userId` | JWT(A) | Revoke secret access                             |
 
 > **Auth legend**: JWT = user session, AK = API key, (A) = admin only
 
@@ -220,32 +248,33 @@ Keys are prefixed with `vk_{env}_` (e.g., `vk_dev_abc123...`). On rotation, the 
 
 ### Scopes
 
-| Scope | Permission |
-|---|---|
-| `entries:read` | Read TOTP entries & generate codes |
-| `entries:write` | Create/update/delete entries |
-| `entries:share` | Share entries with other users |
-| `secrets:read` | Read secrets (decrypted) |
-| `secrets:write` | Create/update/delete secrets |
-| `secrets:share` | Share secrets |
-| `vault:export` | Bulk export all data |
-| `audit:read` | Read request logs |
+| Scope           | Permission                         |
+| --------------- | ---------------------------------- |
+| `entries:read`  | Read TOTP entries & generate codes |
+| `entries:write` | Create/update/delete entries       |
+| `entries:share` | Share entries with other users     |
+| `secrets:read`  | Read secrets (decrypted)           |
+| `secrets:write` | Create/update/delete secrets       |
+| `secrets:share` | Share secrets                      |
+| `vault:export`  | Bulk export all data               |
+| `audit:read`    | Read request logs                  |
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `ZITADEL_CLIENT_ID` | Yes | — | OIDC client ID |
-| `ZITADEL_ISSUER` | Yes | — | ZITADEL instance URL |
-| `ZITADEL_REDIRECT_URI` | No | `http://localhost:3000/api/auth/callback` | OIDC callback |
-| `JWT_SECRET` | Yes | — | 64 hex chars (32 bytes) |
-| `ENCRYPTION_KEY` | Yes | — | 64 hex chars (32 bytes) |
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
-| `APP_URL` | No | `http://localhost:5173` | Frontend origin (CORS) |
-| `API_DOMAIN_URL` | No | — | Serve API on a separate domain (e.g. `api.example.com`) |
-| `MAIN_DOMAIN` | No | `_` (catch-all) | Nginx server_name for the main domain |
-| `COOKIE_DOMAIN` | No | `localhost` | Session cookie domain (use `.example.com` for shared subdomain cookies) |
-| `ENVIRONMENT` | No | `dev` | `dev` or `prod` |
+| Variable                | Required | Default                                   | Description                                                             |
+| ----------------------- | -------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| `ZITADEL_CLIENT_ID`     | Yes      | —                                         | OIDC client ID                                                          |
+| `ZITADEL_ISSUER`        | Yes      | —                                         | ZITADEL instance URL                                                    |
+| `ZITADEL_REDIRECT_URI`  | No       | `http://localhost:3000/api/auth/callback` | OIDC callback                                                           |
+| `JWT_SECRET`            | Yes      | —                                         | 64 hex chars (32 bytes)                                                 |
+| `ENCRYPTION_KEY`        | Yes      | —                                         | 64 hex chars (32 bytes)                                                 |
+| `MASTER_ENCRYPTION_KEY` | No       | —                                         | 64 hex chars (32 bytes), required for Vault Transit Engine              |
+| `DATABASE_URL`          | Yes      | —                                         | PostgreSQL connection string                                            |
+| `APP_URL`               | No       | `http://localhost:5173`                   | Frontend origin (CORS)                                                  |
+| `API_DOMAIN_URL`        | No       | —                                         | Serve API on a separate domain (e.g. `api.example.com`)                 |
+| `MAIN_DOMAIN`           | No       | `_` (catch-all)                           | Nginx server_name for the main domain                                   |
+| `COOKIE_DOMAIN`         | No       | `localhost`                               | Session cookie domain (use `.example.com` for shared subdomain cookies) |
+| `ENVIRONMENT`           | No       | `dev`                                     | `dev` or `prod`                                                         |
 
 ## Development
 

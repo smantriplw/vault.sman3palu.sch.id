@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 255 }).notNull(),
   avatarUrl: text("avatar_url"),
   role: roleEnum("role").default("user").notNull(),
+  isSuspended: boolean("is_suspended").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

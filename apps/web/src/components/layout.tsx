@@ -8,6 +8,7 @@ const navItems = [
 ];
 
 const adminItems = [
+  { path: "/users", label: "Users", icon: "people" },
   { path: "/services", label: "Services", icon: "settings" },
   { path: "/requests", label: "Requests", icon: "activity" },
   { path: "/admin-keys", label: "Encryption Keys", icon: "shield" },

@@ -15,6 +15,13 @@
       "when": 1782466577366,
       "tag": "0001_watery_thunderbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782468610619,
+      "tag": "0002_secret_sheva_callister",
+      "breakpoints": true
     }
   ]
 }

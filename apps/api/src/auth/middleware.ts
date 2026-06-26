@@ -59,6 +59,10 @@ async function jwtAuth(c: any, next: any, token: string) {
       return c.json({ error: "User not found" }, 401);
     }
 
+    if (user.isSuspended) {
+      return c.json({ error: "Account suspended" }, 403);
+    }
+
     c.set("auth", {
       userId: user.id,
       email: user.email,
@@ -137,6 +141,10 @@ async function apiKeyAuth(c: any, next: any, rawKey: string) {
     return c.json({ error: "Associated user not found" }, 401);
   }
 
+  if (user.isSuspended) {
+    return c.json({ error: "Account suspended" }, 403);
+  }
+
   c.set("auth", {
     userId: user.id,
     email: user.email,
@@ -164,7 +172,7 @@ export async function signJWT(userId: string): Promise<string> {
       iat: now,
       exp: now + 60 * 60, // 1 hour — forces session refresh
     },
-    getJWTSecret()
+    getJWTSecret(),
   );
 }
 
@@ -177,7 +185,7 @@ export async function signRefreshJWT(userId: string): Promise<string> {
       iat: now,
       exp: now + 30 * 24 * 60 * 60, // 30 days
     },
-    getJWTSecret()
+    getJWTSecret(),
   );
 }
 
