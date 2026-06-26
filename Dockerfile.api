@@ -1,0 +1,13 @@
+FROM oven/bun:1 AS build
+WORKDIR /app
+
+COPY package.json bun.lock ./
+COPY packages packages
+COPY apps/api/package.json apps/api/
+
+RUN bun install --frozen-lockfile
+
+COPY apps/api apps/api
+
+CMD ["bun", "run", "apps/api/src/index.ts"]
+EXPOSE 3000

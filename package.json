@@ -1,0 +1,20 @@
+{
+  "name": "totp-vault",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "bun --cwd apps/api dev",
+    "dev:web": "bun --cwd apps/web dev",
+    "dev": "concurrently \"bun run dev:api\" \"bun run dev:web\"",
+    "db:generate": "bun --cwd apps/api db:generate",
+    "db:migrate": "bun --cwd apps/api db:migrate",
+    "db:push": "bun --cwd apps/api db:push",
+    "typecheck": "bun --cwd apps/api typecheck && bun --cwd apps/web typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -1,0 +1,22 @@
+FROM oven/bun:1 AS build
+WORKDIR /app
+
+COPY package.json bun.lock ./
+COPY packages packages
+COPY apps/web/package.json apps/web/
+
+RUN bun install --frozen-lockfile
+
+COPY apps/web apps/web
+RUN bun run --cwd apps/web build
+
+FROM oven/bun:1 AS serve
+WORKDIR /app
+COPY --from=build /app/apps/web/dist /app/dist
+RUN bun add serve-handler
+COPY <<-EOF /app/server.js
+const handler = require('serve-handler');
+require('http').createServer((req, res) => handler(req, res, { public: '/app/dist' })).listen(8080);
+EOF
+CMD ["bun", "server.js"]
+EXPOSE 8080
