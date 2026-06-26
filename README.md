@@ -2,7 +2,7 @@
 
 > Secure credential manager with TOTP 2FA codes and generic secrets vault, powered by ZITADEL SSO and AES-256-GCM encryption.
 
-Built for internal use at **SMAN 3 Palu** — single sign-on with institutional ZITADEL account, no separate login needed.
+Built for internal use at **SMAN 3 Palu** — single sign-on with institutional ZITADEL account, no separate login needed. Designed with ISO 27002-aligned security controls throughout.
 
 ---
 
@@ -16,8 +16,15 @@ Built for internal use at **SMAN 3 Palu** — single sign-on with institutional 
 - **IP Whitelist** — CIDR-based restrictions per service
 - **Rate Limiting** — PostgreSQL-based, per-service configurable
 - **Audit Log** — full request logging with method, path, status, auth type, duration, IP
-- **Import/Export** — bulk import/export via otpauth:// URIs (TOTP) or JSON (secrets)
+- **Google Authenticator Migration Import** — import TOTP accounts directly from Google Authenticator's QR export (protobuf decoder built-in, no libraries required)
+- **Import/Export** — bulk import/export via otpauth:// URIs (TOTP), QR migration (Google Auth), or JSON (secrets)
 - **Sharing** — share entries and secrets with other users
+- **Security Headers** — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- **Session Management** — JWT sessions (1h expiry) with automatic refresh (30d refresh token, 45min refresh interval)
+- **Brute Force Protection** — IP-based rate limiting on auth endpoints (10 requests/min)
+- **Security Audit Logging** — typed security events for decrypt failures, key rotation, exports, shares, brute-force blocks
+- **Secure Wipe** — overwrite decrypted secrets in memory before deletion (ISO 27002 8.10)
+- **Key Rotation Script** — rotate JWT + encryption keys with documented procedure
 
 ## Stack
 
@@ -124,8 +131,8 @@ Nginx serves both API (`/api/`) and static frontend on port 80.
 │   │   ├── src/
 │   │   │   ├── auth/         # ZITADEL OIDC, JWT middleware
 │   │   │   ├── db/           # Schema, relations, client
-│   │   │   ├── lib/          # Encryption, TOTP, API keys, rate limiter
-│   │   │   ├── middleware/   # Request logger
+│   │   │   ├── lib/          # Encryption, TOTP, API keys, rate limiter, Google Auth protobuf decoder, security audit
+│   │   │   ├── middleware/   # Request logger, security headers
 │   │   │   └── routes/       # Auth, entries, secrets, shares, admin
 │   │   └── ...
 │   └── web/                  # React + Vite frontend
@@ -137,6 +144,9 @@ Nginx serves both API (`/api/`) and static frontend on port 80.
 │           └── pages/        # Dashboard, secrets, admin pages
 ├── packages/
 │   └── shared/               # Zod schemas & shared types
+├── scripts/
+│   ├── generate-sbom.sh      # CycloneDX SBOM generator
+│   └── rotate-keys.sh        # JWT + encryption key rotation procedure
 ├── docker-compose.yml
 ├── Dockerfile.api
 ├── Dockerfile.web
@@ -159,6 +169,8 @@ Nginx serves both API (`/api/`) and static frontend on port 80.
 | `PUT /api/entries/:id` | JWT | Update entry |
 | `DELETE /api/entries/:id` | JWT | Delete entry |
 | `POST /api/entries/import` | JWT | Bulk import otpauth URIs |
+| `POST /api/entries/import-google-auth` | JWT | Import Google Authenticator migration data |
+| `POST /api/entries/preview-google-auth` | JWT | Preview Google Authenticator migration (no save) |
 | `GET /api/entries/export` | JWT/AK | Export all as URIs |
 | | | |
 | `GET /api/secrets` | JWT/AK | List secrets |
@@ -231,6 +243,12 @@ bun run db:migrate
 
 # Typecheck all workspaces
 bun run typecheck
+
+# Generate SBOM (CycloneDX)
+bash scripts/generate-sbom.sh
+
+# Rotate JWT + encryption keys
+bash scripts/rotate-keys.sh
 ```
 
 ## License
