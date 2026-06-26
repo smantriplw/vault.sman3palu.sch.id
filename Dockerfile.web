@@ -15,8 +15,19 @@ WORKDIR /app
 COPY --from=build /app/apps/web/dist /app/dist
 RUN bun add serve-handler
 COPY <<-EOF /app/server.js
-const handler = require('serve-handler');
-require('http').createServer((req, res) => handler(req, res, { public: '/app/dist' })).listen(8080);
+const handler = require("serve-handler");
+const fs = require("fs");
+require("http").createServer((req, res) => {
+  const url = req.url === "/" ? "/index.html" : req.url.split("?")[0];
+  const filePath = "/app/dist" + url;
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    return handler(req, res, { public: "/app/dist" });
+  }
+  return handler(req, res, {
+    public: "/app/dist",
+    rewrites: [{ source: "**", destination: "/index.html" }],
+  });
+}).listen(8080);
 EOF
 CMD ["bun", "server.js"]
 EXPOSE 8080
