@@ -33,45 +33,48 @@ secrets.get("/", async (c) => {
     })),
   ];
 
-  const result = await Promise.all(
-    all.map(async (secret) => {
-      try {
-        const data = JSON.parse(
-          await decrypt(secret.encryptedData, secret.encryptionNonce)
-        );
-        return {
-          id: secret.id,
-          name: secret.name,
-          category: secret.category,
-          data,
-          fieldsSchema: secret.fieldsSchema,
-          iconUrl: secret.iconUrl,
-          sortOrder: secret.sortOrder,
-          shared: secret.shared,
-          canEdit: secret.canEdit,
-          createdAt: secret.createdAt,
-          updatedAt: secret.updatedAt,
-        };
-      } catch (e) {
-        await logSecurityEvent("decryption.failed", { secretId: secret.id, name: secret.name }, auth.userId);
-        return {
-          id: secret.id,
-          name: secret.name,
-          category: secret.category,
-          data: null,
-          fieldsSchema: secret.fieldsSchema,
-          iconUrl: secret.iconUrl,
-          sortOrder: secret.sortOrder,
-          shared: secret.shared,
-          canEdit: secret.canEdit,
-          createdAt: secret.createdAt,
-          updatedAt: secret.updatedAt,
-        };
-      }
-    })
-  );
+  const result = all.map((secret) => ({
+    id: secret.id,
+    name: secret.name,
+    category: secret.category,
+    data: null,
+    fieldsSchema: secret.fieldsSchema,
+    iconUrl: secret.iconUrl,
+    sortOrder: secret.sortOrder,
+    shared: secret.shared,
+    canEdit: secret.canEdit,
+    createdAt: secret.createdAt,
+    updatedAt: secret.updatedAt,
+  }));
 
   return c.json(result);
+});
+
+secrets.post("/:id/reveal", async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+
+  const secret = await db.query.secrets.findFirst({
+    where: eq(schema.secrets.id, id),
+  });
+
+  if (!secret) throw new HTTPException(404, { message: "Secret not found" });
+
+  if (secret.userId !== auth.userId) {
+    const share = await db.query.secretShares.findFirst({
+      where: and(
+        eq(schema.secretShares.secretId, id),
+        eq(schema.secretShares.sharedWithUserId, auth.userId)
+      ),
+    });
+    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+  }
+
+  const data = JSON.parse(await decrypt(secret.encryptedData, secret.encryptionNonce));
+
+  await logSecurityEvent("secret.revealed", { secretId: id, name: secret.name }, auth.userId);
+
+  return c.json({ data });
 });
 
 secrets.get("/:id", async (c) => {

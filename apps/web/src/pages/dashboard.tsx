@@ -1,19 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
 
-function TOTPTimer({ period }: { period: number }) {
+function TOTPTimer({ period, onExpire }: { period: number; onExpire: () => void }) {
   const [remaining, setRemaining] = useState(period - (Math.floor(Date.now() / 1000) % period));
+  const called = useRef(false);
 
   useEffect(() => {
+    called.current = false;
     const interval = setInterval(() => {
-      setRemaining(period - (Math.floor(Date.now() / 1000) % period));
+      const r = period - (Math.floor(Date.now() / 1000) % period);
+      setRemaining(r);
+      if (r <= 1 && !called.current) {
+        called.current = true;
+        onExpire();
+      }
     }, 1000);
     return () => clearInterval(interval);
-  }, [period]);
+  }, [period, onExpire]);
 
   const pct = (remaining / period) * 100;
 
@@ -31,12 +38,23 @@ export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [revealedCodes, setRevealedCodes] = useState<Record<string, string>>({});
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["entries"],
     queryFn: api.listEntries,
-    refetchInterval: 30_000,
   });
+
+  const revealEntry = useCallback(async (id: string, period: number) => {
+    try {
+      const { code } = await api.revealEntry(id);
+      setRevealedCodes((prev) => ({ ...prev, [id]: code }));
+      setRevealedIds((prev) => new Set(prev).add(id));
+    } catch {
+      // silently fail — user can retry
+    }
+  }, []);
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -79,56 +97,73 @@ export function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {entries.map((entry) => (
-            <div key={entry.id} className="card hover:shadow-md transition-shadow">
-              <div className="card-body">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-brand-600 uppercase tracking-wider truncate">
-                      {entry.issuer}
-                    </p>
-                    <p className="text-base font-semibold text-gray-900 truncate">{entry.label}</p>
+          {entries.map((entry) => {
+            const isRevealed = revealedIds.has(entry.id);
+            const code = revealedCodes[entry.id];
+
+            return (
+              <div key={entry.id} className="card hover:shadow-md transition-shadow">
+                <div className="card-body">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-brand-600 uppercase tracking-wider truncate">
+                        {entry.issuer}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900 truncate">{entry.label}</p>
+                    </div>
+                    {entry.shared && (
+                      <span className="badge bg-brand-50 text-brand-700 ml-2 shrink-0">shared</span>
+                    )}
                   </div>
-                  {entry.shared && (
-                    <span className="badge bg-brand-50 text-brand-700 ml-2 shrink-0">shared</span>
+
+                  {isRevealed && code ? (
+                    <div>
+                      <button
+                        onClick={() => copyCode(code)}
+                        className="w-full text-center py-2"
+                        title="Click to copy"
+                      >
+                        <span className="text-3xl font-mono font-bold tracking-[0.25em] text-brand-600 hover:text-brand-700 transition-colors select-all">
+                          {code}
+                        </span>
+                      </button>
+                      <TOTPTimer
+                        period={entry.period}
+                        onExpire={() => revealEntry(entry.id, entry.period)}
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => revealEntry(entry.id, entry.period)}
+                      className="w-full py-3 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-brand-600 border-2 border-dashed border-gray-200 rounded-xl hover:border-brand-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      </svg>
+                      Tap to reveal code
+                    </button>
+                  )}
+
+                  {entry.canEdit && (
+                    <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => navigate(`/edit/${entry.id}`)}
+                        className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        className="text-sm text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
-
-                <button
-                  onClick={() => entry.code && copyCode(entry.code)}
-                  className="w-full text-center py-2"
-                  title="Click to copy"
-                >
-                  {entry.code ? (
-                    <span className="text-3xl font-mono font-bold tracking-[0.25em] text-brand-600 hover:text-brand-700 transition-colors select-all">
-                      {entry.code}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-red-500 font-medium">Decryption failed</span>
-                  )}
-                </button>
-
-                <TOTPTimer period={entry.period} />
-
-                {entry.canEdit && (
-                  <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                    <button
-                      onClick={() => navigate(`/edit/${entry.id}`)}
-                      className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      className="text-sm text-red-500 hover:text-red-700 font-medium"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {entries.length === 0 && (
             <div className="col-span-full card py-12">

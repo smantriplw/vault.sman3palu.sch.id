@@ -32,7 +32,7 @@ export const api = {
         id: string;
         issuer: string;
         label: string;
-        code: string | null;
+        code: null;
         algorithm: string;
         digits: number;
         period: number;
@@ -45,7 +45,14 @@ export const api = {
       }>
     >("/api/entries"),
 
-  getEntry: (id: string) => request<any>(`/api/entries/${id}`),
+  getEntry: (id: string) => request<{
+    id: string; issuer: string; label: string; algorithm: string;
+    digits: number; period: number; iconUrl: string | null; sortOrder: number;
+    createdAt: string; updatedAt: string;
+  }>(`/api/entries/${id}`),
+
+  revealEntry: (id: string) =>
+    request<{ code: string }>(`/api/entries/${id}/reveal`, { method: "POST" }),
 
   createEntry: (data: {
     issuer: string;
@@ -87,9 +94,22 @@ export const api = {
     request<{ ok: boolean }>(`/api/shares/${shareId}`, { method: "DELETE" }),
 
   // Secrets
-  listSecrets: () => request<any[]>("/api/secrets"),
+  listSecrets: () => request<Array<{
+    id: string; name: string; category: string; data: null;
+    fieldsSchema: Array<{ key: string; label: string; type: string }> | null;
+    notes: string | null; iconUrl: string | null; sortOrder: number;
+    shared: boolean; canEdit: boolean; createdAt: string; updatedAt: string;
+  }>>("/api/secrets"),
 
-  getSecret: (id: string) => request<any>(`/api/secrets/${id}`),
+  getSecret: (id: string) => request<{
+    id: string; name: string; category: string; data: any;
+    fieldsSchema: Array<{ key: string; label: string; type: string }> | null;
+    iconUrl: string | null; sortOrder: number; shared: boolean; canEdit: boolean;
+    createdAt: string; updatedAt: string;
+  }>(`/api/secrets/${id}`),
+
+  revealSecret: (id: string) =>
+    request<{ data: Record<string, string> }>(`/api/secrets/${id}/reveal`, { method: "POST" }),
 
   createSecret: (data: {
     name: string;

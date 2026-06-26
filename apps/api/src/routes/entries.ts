@@ -35,52 +35,56 @@ entries.get("/", async (c) => {
     })),
   ];
 
-  const result = await Promise.all(
-    allEntries.map(async (entry) => {
-      try {
-        const secret = await decrypt(entry.encryptedSecret, entry.encryptionNonce);
-        const code = generateTOTP({
-          secret,
-          algorithm: entry.algorithm as any,
-          digits: entry.digits,
-          period: entry.period,
-        });
-        return {
-          id: entry.id,
-          issuer: entry.issuer,
-          label: entry.label,
-          algorithm: entry.algorithm,
-          digits: entry.digits,
-          period: entry.period,
-          iconUrl: entry.iconUrl,
-          sortOrder: entry.sortOrder,
-          code,
-          shared: entry.shared,
-          canEdit: entry.canEdit,
-          createdAt: entry.createdAt,
-          updatedAt: entry.updatedAt,
-        };
-      } catch {
-        return {
-          id: entry.id,
-          issuer: entry.issuer,
-          label: entry.label,
-          algorithm: entry.algorithm,
-          digits: entry.digits,
-          period: entry.period,
-          iconUrl: entry.iconUrl,
-          sortOrder: entry.sortOrder,
-          code: null,
-          shared: entry.shared,
-          canEdit: entry.canEdit,
-          createdAt: entry.createdAt,
-          updatedAt: entry.updatedAt,
-        };
-      }
-    })
-  );
+  const result = allEntries.map((entry) => ({
+    id: entry.id,
+    issuer: entry.issuer,
+    label: entry.label,
+    algorithm: entry.algorithm,
+    digits: entry.digits,
+    period: entry.period,
+    iconUrl: entry.iconUrl,
+    sortOrder: entry.sortOrder,
+    code: null,
+    shared: entry.shared,
+    canEdit: entry.canEdit,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+  }));
 
   return c.json(result);
+});
+
+entries.post("/:id/reveal", async (c) => {
+  const auth = c.get("auth");
+  const id = c.req.param("id");
+
+  const entry = await db.query.vaultEntries.findFirst({
+    where: eq(schema.vaultEntries.id, id),
+  });
+
+  if (!entry) throw new HTTPException(404, { message: "Entry not found" });
+
+  if (entry.userId !== auth.userId) {
+    const share = await db.query.shares.findFirst({
+      where: and(
+        eq(schema.shares.entryId, id),
+        eq(schema.shares.sharedWithUserId, auth.userId)
+      ),
+    });
+    if (!share) throw new HTTPException(403, { message: "Forbidden" });
+  }
+
+  const secret = await decrypt(entry.encryptedSecret, entry.encryptionNonce);
+  const code = generateTOTP({
+    secret,
+    algorithm: entry.algorithm as any,
+    digits: entry.digits,
+    period: entry.period,
+  });
+
+  await logSecurityEvent("entry.revealed", { entryId: id, issuer: entry.issuer }, auth.userId);
+
+  return c.json({ code });
 });
 
 entries.get("/export/all", requireScope("vault:export"), async (c) => {
