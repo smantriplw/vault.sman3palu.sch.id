@@ -105,12 +105,12 @@ export function SecretsPage() {
                   </div>
 
                   <div className="space-y-1.5 mb-3">
-                    {secret.fields.map((field: { key: string; value: string }, i: number) => (
+                    {(secret.fieldsSchema as Array<{ key: string; label: string }> | undefined)?.map((field, i) => (
                       <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
-                        <span className="text-xs font-medium text-gray-500 w-24 truncate">{field.key}</span>
+                        <span className="text-xs font-medium text-gray-500 w-24 truncate">{field.label || field.key}</span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-mono text-gray-900">
-                            {isRevealed ? field.value : "••••••••"}
+                            {isRevealed ? (secret.data?.[field.key] ?? "") : "••••••••"}
                           </span>
                           <button
                             onClick={() => toggleReveal(secret.id)}
@@ -126,7 +126,7 @@ export function SecretsPage() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => copyValue(secret.id, field.value)}
+                            onClick={() => copyValue(secret.id, secret.data?.[field.key] ?? "")}
                             className="text-gray-400 hover:text-brand-600 p-0.5"
                             title="Copy"
                           >
