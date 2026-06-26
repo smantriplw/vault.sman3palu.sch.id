@@ -44,7 +44,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
 async function jwtAuth(c: any, next: any, token: string) {
   try {
-    const payload = await jwtVerify(token, getJWTSecret());
+    const payload = await jwtVerify(token, getJWTSecret(), "HS256");
     const user = await db.query.users.findFirst({
       where: eq(schema.users.id, payload.sub as string),
     });
@@ -156,7 +156,20 @@ export async function signJWT(userId: string): Promise<string> {
     {
       sub: userId,
       iat: now,
-      exp: now + 60 * 60 * 24, // 24 hours
+      exp: now + 60 * 60, // 1 hour — forces session refresh
+    },
+    getJWTSecret()
+  );
+}
+
+export async function signRefreshJWT(userId: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  return jwtSign(
+    {
+      sub: userId,
+      typ: "refresh",
+      iat: now,
+      exp: now + 30 * 24 * 60 * 60, // 30 days
     },
     getJWTSecret()
   );

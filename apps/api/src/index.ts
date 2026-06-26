@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { securityHeaders } from "./middleware/security-headers";
 import authRoutes from "./routes/auth";
 import entriesRoutes from "./routes/entries";
 import secretsRoutes from "./routes/secrets";
@@ -11,6 +12,8 @@ import { requestLogger } from "./middleware/request-logger";
 
 const app = new Hono();
 
+// ISO 27002 8.15 — security headers
+app.use("*", securityHeaders);
 app.use("*", logger());
 app.use(
   "*",

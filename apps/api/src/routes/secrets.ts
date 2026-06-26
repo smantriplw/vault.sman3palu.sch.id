@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import { eq, and, desc } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
-import { encrypt, decrypt } from "../lib/encryption";
+import { encrypt, decrypt, secureWipe } from "../lib/encryption";
 import { CreateSecretSchema, UpdateSecretSchema, UpdateSecretDataSchema } from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
+import { logSecurityEvent } from "../lib/security-audit";
 
 const secrets = new Hono();
 
@@ -51,7 +52,8 @@ secrets.get("/", async (c) => {
           createdAt: secret.createdAt,
           updatedAt: secret.updatedAt,
         };
-      } catch {
+      } catch (e) {
+        await logSecurityEvent("decryption.failed", { secretId: secret.id, name: secret.name }, auth.userId);
         return {
           id: secret.id,
           name: secret.name,
@@ -195,7 +197,11 @@ secrets.delete("/:id", async (c) => {
   if (!secret) throw new HTTPException(404, { message: "Secret not found" });
   if (secret.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
 
+  // ISO 27002 8.10 — secure wipe before delete
+  await secureWipe();
   await db.delete(schema.secrets).where(eq(schema.secrets.id, id));
+
+  await logSecurityEvent("secret.deleted", { secretId: id, name: secret.name }, auth.userId);
   return c.json({ ok: true });
 });
 
@@ -257,6 +263,9 @@ secrets.get("/export/all", requireScope("vault:export"), async (c) => {
       };
     })
   );
+
+  await logSecurityEvent("export.downloaded",
+    { type: "secrets", count: exported.length }, auth.userId);
 
   return c.json(exported);
 });

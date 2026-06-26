@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { eq, and, desc } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
-import { encrypt, decrypt } from "../lib/encryption";
+import { encrypt, decrypt, secureWipe } from "../lib/encryption";
 import { generateTOTP, parseOTPURI, buildOTPURI } from "../lib/totp";
 import { CreateEntrySchema, UpdateEntrySchema, ImportEntriesSchema } from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
+import { logSecurityEvent } from "../lib/security-audit";
 
 const entries = new Hono();
 
@@ -99,6 +100,9 @@ entries.get("/export/all", requireScope("vault:export"), async (c) => {
       });
     })
   );
+
+  await logSecurityEvent("export.downloaded",
+    { type: "entries", count: exported.length }, auth.userId);
 
   return c.json({ uris: exported });
 });
@@ -203,7 +207,11 @@ entries.delete("/:id", async (c) => {
   if (!entry) throw new HTTPException(404, { message: "Entry not found" });
   if (entry.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
 
+  // ISO 27002 8.10 — secure wipe before delete
+  await secureWipe();
   await db.delete(schema.vaultEntries).where(eq(schema.vaultEntries.id, id));
+
+  await logSecurityEvent("entry.deleted", { entryId: id, issuer: entry.issuer }, auth.userId);
   return c.json({ ok: true });
 });
 

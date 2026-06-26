@@ -6,10 +6,11 @@ import { authMiddleware, requireAdmin } from "../auth/middleware";
 import { generateApiKey } from "../lib/api-keys";
 import { CreateApiKeySchema } from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
+import { logSecurityEvent } from "../lib/security-audit";
 
 const admin = new Hono();
 
-admin.use("*", authMiddleware, requireAdmin);
+admin.use("*", authMiddleware, requireAdmin() as any);
 
 // List services
 admin.get("/services", async (c) => {
@@ -71,6 +72,9 @@ admin.post("/services", async (c) => {
     );
   }
 
+  await logSecurityEvent("key.created",
+    { serviceName: parsed.service_name, keyPrefix: prefix }, auth.userId);
+
   return c.json(
     {
       id: apikey.id,
@@ -116,6 +120,7 @@ admin.put("/services/:id", async (c) => {
 
 // Rotate API key
 admin.post("/services/:id/rotate", async (c) => {
+  const auth = c.get("auth");
   const id = c.req.param("id");
   const key = await db.query.apiKeys.findFirst({
     where: eq(schema.apiKeys.id, id),
@@ -136,16 +141,31 @@ admin.post("/services/:id/rotate", async (c) => {
     })
     .where(eq(schema.apiKeys.id, id));
 
+  await logSecurityEvent("key.rotated",
+    { serviceName: key.serviceName, keyId: id, oldPrefix: key.keyPrefix }, auth.userId);
+
   return c.json({ apiKey: raw, keyPrefix: prefix });
 });
 
 // Revoke service
 admin.delete("/services/:id", async (c) => {
+  const auth = c.get("auth");
   const id = c.req.param("id");
+
+  const key = await db.query.apiKeys.findFirst({
+    where: eq(schema.apiKeys.id, id),
+  });
+
   await db
     .update(schema.apiKeys)
     .set({ isActive: false })
     .where(eq(schema.apiKeys.id, id));
+
+  if (key) {
+    await logSecurityEvent("key.revoked",
+      { serviceName: key.serviceName, keyId: id }, auth.userId);
+  }
+
   return c.json({ ok: true });
 });
 

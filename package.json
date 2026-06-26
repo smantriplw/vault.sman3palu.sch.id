@@ -12,9 +12,15 @@
     "db:generate": "bun --cwd apps/api db:generate",
     "db:migrate": "bun --cwd apps/api db:migrate",
     "db:push": "bun --cwd apps/api db:push",
-    "typecheck": "bun --cwd apps/api typecheck && bun --cwd apps/web typecheck"
+    "typecheck": "bun --cwd apps/api typecheck && bun --cwd apps/web typecheck",
+    "sbom": "bash scripts/generate-sbom.sh",
+    "rotate-keys": "bash scripts/rotate-keys.sh",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.4.0"
   }
 }

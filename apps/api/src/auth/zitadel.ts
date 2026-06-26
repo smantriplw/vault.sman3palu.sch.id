@@ -2,7 +2,6 @@ import {
   OAuth2Client,
   CodeChallengeMethod,
   generateCodeVerifier,
-  createS256CodeChallenge,
 } from "arctic";
 import { db, schema } from "../db/client";
 import { eq } from "drizzle-orm";

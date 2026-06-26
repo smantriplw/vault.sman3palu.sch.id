@@ -4,6 +4,7 @@ import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
 import { CreateShareSchema } from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
+import { logSecurityEvent } from "../lib/security-audit";
 
 const secretShares = new Hono();
 
@@ -45,6 +46,9 @@ secretShares.post("/:secretId", async (c) => {
     .onConflictDoNothing()
     .returning();
 
+  await logSecurityEvent("share.created",
+    { secretId, sharedWithUserId: parsed.user_id }, auth.userId);
+
   return c.json(share, 201);
 });
 
@@ -60,6 +64,10 @@ secretShares.delete("/:id", async (c) => {
   if (share.secret.userId !== auth.userId) throw new HTTPException(403, { message: "Forbidden" });
 
   await db.delete(schema.secretShares).where(eq(schema.secretShares.id, id));
+
+  await logSecurityEvent("share.revoked",
+    { shareId: id, secretId: share.secretId }, auth.userId);
+
   return c.json({ ok: true });
 });
 
