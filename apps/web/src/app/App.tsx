@@ -6,6 +6,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { AddEntryPage } from "@/pages/add-entry";
 import { EditEntryPage } from "@/pages/edit-entry";
 import { ImportPage } from "@/pages/import";
+import { ImportGoogleAuthPage } from "@/pages/import-google-auth";
 import { ExportPage } from "@/pages/export";
 import { SecretsPage } from "@/pages/secrets";
 import { AddSecretPage } from "@/pages/add-secret";
@@ -42,6 +43,7 @@ export function App() {
             <Route path="/add" element={<ProtectedRoute><AddEntryPage /></ProtectedRoute>} />
             <Route path="/edit/:id" element={<ProtectedRoute><EditEntryPage /></ProtectedRoute>} />
             <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
+            <Route path="/import-google-auth" element={<ProtectedRoute><ImportGoogleAuthPage /></ProtectedRoute>} />
             <Route path="/export" element={<ProtectedRoute><ExportPage /></ProtectedRoute>} />
             <Route path="/secrets" element={<ProtectedRoute><SecretsPage /></ProtectedRoute>} />
             <Route path="/secrets/new" element={<ProtectedRoute><AddSecretPage /></ProtectedRoute>} />

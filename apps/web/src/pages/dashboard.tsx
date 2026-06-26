@@ -67,6 +67,7 @@ export function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/import" className="btn-secondary text-sm">Import</Link>
+            <Link to="/import-google-auth" className="btn-secondary text-sm">GA Import</Link>
             <Link to="/export" className="btn-secondary text-sm">Export</Link>
             <Link to="/add" className="btn-primary">
               <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

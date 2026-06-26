@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { authMiddleware, requireScope } from "../auth/middleware";
 import { encrypt, decrypt, secureWipe } from "../lib/encryption";
 import { generateTOTP, parseOTPURI, buildOTPURI } from "../lib/totp";
+import { decodeGoogleAuthMigration, extractDataFromMigrationURI, buildOtpauthURI } from "../lib/google-auth-import";
 import { CreateEntrySchema, UpdateEntrySchema, ImportEntriesSchema } from "@vault/shared";
 import { HTTPException } from "hono/http-exception";
 import { logSecurityEvent } from "../lib/security-audit";
@@ -246,6 +248,85 @@ entries.post("/import", requireScope("entries:write"), async (c) => {
   );
 
   return c.json({ imported: results.filter((r) => r.success).length, results });
+});
+
+// Google Authenticator migration import
+const ImportGoogleAuthSchema = z.object({
+  uri: z.string().optional(),
+  data: z.string().optional(),
+});
+
+function extractPayload(c: any, parsed: any): string {
+  if (parsed.data) return parsed.data;
+  if (parsed.uri) return extractDataFromMigrationURI(parsed.uri);
+  throw new Error("Provide either 'uri' or 'data'");
+}
+
+entries.post("/preview-google-auth", async (c) => {
+  const body = await c.req.json();
+  const parsed = ImportGoogleAuthSchema.parse(body);
+  const dataB64 = extractPayload(c, parsed);
+  const payload = decodeGoogleAuthMigration(dataB64);
+  return c.json({
+    accounts: payload.otpParameters.map((a) => ({
+      name: a.name,
+      issuer: a.issuer,
+      algorithm: a.algorithm,
+      digits: a.digits,
+      type: a.type,
+    })),
+    meta: {
+      version: payload.version,
+      batchSize: payload.batchSize,
+      batchIndex: payload.batchIndex,
+      batchId: payload.batchId,
+    },
+  });
+});
+
+entries.post("/import-google-auth", async (c) => {
+  const auth = c.get("auth");
+  const body = await c.req.json();
+  const parsed = ImportGoogleAuthSchema.parse(body);
+  const dataB64 = extractPayload(c, parsed);
+  const payload = decodeGoogleAuthMigration(dataB64);
+  const results: Array<{ success: boolean; id?: string; error?: string; name?: string }> = [];
+
+  for (const account of payload.otpParameters) {
+    try {
+      const { ciphertext, nonce } = await encrypt(account.secret);
+
+      const [entry] = await db
+        .insert(schema.vaultEntries)
+        .values({
+          userId: auth.userId,
+          issuer: account.issuer || "Google Authenticator",
+          label: account.name || "Imported",
+          encryptedSecret: ciphertext,
+          encryptionNonce: nonce,
+          algorithm: account.algorithm || "SHA1",
+          digits: account.digits || 6,
+          period: 30,
+        })
+        .returning();
+
+      results.push({ success: true, id: entry.id, name: account.name });
+    } catch (e: any) {
+      results.push({ success: false, error: e.message, name: account.name });
+    }
+  }
+
+  return c.json({
+    imported: results.filter((r) => r.success).length,
+    total: payload.otpParameters.length,
+    results,
+    meta: {
+      version: payload.version,
+      batchSize: payload.batchSize,
+      batchIndex: payload.batchIndex,
+      batchId: payload.batchId,
+    },
+  });
 });
 
 export default entries;

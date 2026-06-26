@@ -68,6 +68,15 @@ export const api = {
       { method: "POST", body: JSON.stringify({ uris }) }
     ),
 
+  importGoogleAuth: (body: { uri?: string; data?: string }) =>
+    request<{
+      imported: number;
+      total: number;
+      preview?: Array<{ name: string; issuer: string; algorithm: string; digits: number }>;
+      results: Array<{ success: boolean; id?: string; error?: string; name?: string }>;
+      meta: { version: number; batchSize: number; batchIndex: number; batchId: number };
+    }>("/api/entries/import-google-auth", { method: "POST", body: JSON.stringify(body) }),
+
   exportEntries: () => request<{ uris: string[] }>("/api/entries/export/all"),
 
   // Shares
