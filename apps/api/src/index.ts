@@ -38,6 +38,30 @@ app.route("/api/vault", transitRoutes);
 
 app.get("/health", (c) => c.json({ ok: true }));
 
+// SPA fallback — serve web app static files without NGINX
+const webDist = process.env.WEB_DIST_PATH || "../web/dist";
+
+app.get("*", async (c) => {
+  // Only handle non-API routes
+  if (c.req.path.startsWith("/api/") || c.req.path === "/health") {
+    return c.notFound();
+  }
+
+  const servePath = c.req.path === "/" ? "/index.html" : c.req.path;
+  const file = Bun.file(`${webDist}${servePath}`);
+  if (await file.exists()) {
+    return new Response(file);
+  }
+
+  // SPA fallback — serve index.html so React Router handles the route
+  const indexFile = Bun.file(`${webDist}/index.html`);
+  if (await indexFile.exists()) {
+    return new Response(indexFile);
+  }
+
+  return c.notFound();
+});
+
 const port = parseInt(process.env.PORT || "3000");
 console.log(`Server running on http://localhost:${port}`);
 
