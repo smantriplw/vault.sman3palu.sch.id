@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Layout } from "@/components/layout";
+import { QrScanner } from "@/components/qr-scanner";
 import { decryptExport, isEncryptedExport } from "@/lib/crypto-export";
 
 const ACCEPTED_EXTENSIONS = ".json,.json.encrypted";
@@ -10,10 +11,11 @@ const ACCEPTED_EXTENSIONS = ".json,.json.encrypted";
 export function ImportPage() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<"paste" | "file">("paste");
+  const [mode, setMode] = useState<"paste" | "file" | "scan">("paste");
   const [urisText, setUrisText] = useState("");
   const [filePassphrase, setFilePassphrase] = useState("");
   const [decrypting, setDecrypting] = useState(false);
+  const [scannedUri, setScannedUri] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -29,7 +31,8 @@ export function ImportPage() {
       const text = await file.text();
       let data: any;
       if (isEncryptedExport(text)) {
-        if (!filePassphrase) throw new Error("Passphrase required for encrypted file");
+        if (!filePassphrase)
+          throw new Error("Passphrase required for encrypted file");
         setDecrypting(true);
         try {
           data = await decryptExport(text, filePassphrase);
@@ -39,7 +42,9 @@ export function ImportPage() {
       } else {
         data = JSON.parse(text);
       }
-      const uris = (data.uris || data || []).filter((u: string) => u.startsWith("otpauth://"));
+      const uris = (data.uris || data || []).filter((u: string) =>
+        u.startsWith("otpauth://"),
+      );
       return api.importEntries(uris);
     },
     onSuccess: () => navigate("/"),
@@ -50,18 +55,39 @@ export function ImportPage() {
     if (file) setFilePassphrase("");
   };
 
-  const uriCount = urisText.split("\n").filter((l) => l.trim().startsWith("otpauth://")).length;
+  const uriCount = urisText
+    .split("\n")
+    .filter((l) => l.trim().startsWith("otpauth://")).length;
+
+  const handleQrResult = useCallback((data: string) => {
+    setScannedUri(data);
+  }, []);
+
+  const qrMutation = useMutation({
+    mutationFn: async () => {
+      if (!scannedUri) throw new Error("No QR data");
+      if (scannedUri.startsWith("otpauth-migration://")) {
+        return api.importGoogleAuth({ uri: scannedUri });
+      }
+      return api.importEntries([scannedUri]);
+    },
+    onSuccess: (data: any) => navigate("/"),
+  });
 
   return (
     <Layout>
       <div className="max-w-lg mx-auto">
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">Import TOTP Entries</h1>
+        <h1 className="text-xl font-semibold text-gray-900 mb-6">
+          Import TOTP Entries
+        </h1>
 
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setMode("paste")}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              mode === "paste" ? "bg-brand-100 text-brand-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              mode === "paste"
+                ? "bg-brand-100 text-brand-700"
+                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
             }`}
           >
             Paste URIs
@@ -69,18 +95,41 @@ export function ImportPage() {
           <button
             onClick={() => setMode("file")}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              mode === "file" ? "bg-brand-100 text-brand-700" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              mode === "file"
+                ? "bg-brand-100 text-brand-700"
+                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
             }`}
           >
             Upload File
           </button>
+          <button
+            onClick={() => {
+              setMode("scan");
+              setScannedUri(null);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              mode === "scan"
+                ? "bg-brand-100 text-brand-700"
+                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+            }`}
+          >
+            Scan QR
+          </button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="card">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            mutation.mutate();
+          }}
+          className="card"
+        >
           <div className="card-body space-y-4">
             {mode === "paste" ? (
               <div>
-                <label className="label">Paste otpauth:// URIs (one per line)</label>
+                <label className="label">
+                  Paste otpauth:// URIs (one per line)
+                </label>
                 <textarea
                   value={urisText}
                   onChange={(e) => setUrisText(e.target.value)}
@@ -89,7 +138,9 @@ export function ImportPage() {
                   placeholder="otpauth://totp/Example:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Example"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">{uriCount} valid URI(s) detected</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {uriCount} valid URI(s) detected
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -118,35 +169,99 @@ export function ImportPage() {
               </div>
             )}
 
-            {mutation.data && (
+            {mode === "scan" && (
+              <div className="space-y-3">
+                <QrScanner onResult={handleQrResult} />
+                {scannedUri && (
+                  <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
+                    <p className="text-sm text-brand-800 font-medium mb-1">
+                      QR Code detected!
+                    </p>
+                    <p className="text-xs text-gray-600 break-all">
+                      {scannedUri.slice(0, 120)}...
+                    </p>
+                    {qrMutation.isSuccess && (
+                      <p className="text-sm text-green-700 mt-2">
+                        Imported {qrMutation.data.imported} of{" "}
+                        {qrMutation.data.total} entries
+                      </p>
+                    )}
+                    {qrMutation.isError && (
+                      <p className="text-sm text-red-600 mt-2">
+                        {(qrMutation.error as Error).message}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => qrMutation.mutate()}
+                      disabled={qrMutation.isPending}
+                      className="btn-primary mt-3 w-full"
+                    >
+                      {qrMutation.isPending
+                        ? "Importing..."
+                        : "Import detected entries"}
+                    </button>
+                    <button
+                      onClick={() => setScannedUri(null)}
+                      className="text-sm text-gray-500 hover:text-gray-700 mt-2 w-full text-center"
+                    >
+                      Scan another
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {mutation.data && mode !== "scan" && (
               <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
                 <p className="text-sm text-brand-800 font-medium mb-1">
-                  Imported {mutation.data.imported} of {mutation.data.results.length} entries
+                  Imported {mutation.data.imported} of{" "}
+                  {mutation.data.results.length} entries
                 </p>
                 {mutation.data.results
                   .filter((r: any) => !r.success)
                   .map((r: any, i: number) => (
-                    <p key={i} className="text-xs text-red-600">{r.error}</p>
+                    <p key={i} className="text-xs text-red-600">
+                      {r.error}
+                    </p>
                   ))}
               </div>
             )}
 
-            {mutation.isError && (
-              <p className="text-red-500 text-sm">{(mutation.error as Error).message}</p>
+            {mutation.isError && mode !== "scan" && (
+              <p className="text-red-500 text-sm">
+                {(mutation.error as Error).message}
+              </p>
             )}
 
-            <div className="flex gap-3">
-              <button type="button" onClick={() => navigate("/")} className="btn-secondary flex-1">
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={mutation.isPending || decrypting || (mode === "paste" && uriCount === 0) || (mode === "file" && !fileRef.current?.files?.[0])}
-                className="btn-primary flex-1"
-              >
-                {decrypting ? "Decrypting..." : mutation.isPending ? "Importing..." : mode === "paste" ? `Import ${uriCount} entries` : "Import from file"}
-              </button>
-            </div>
+            {mode !== "scan" && (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    mutation.isPending ||
+                    decrypting ||
+                    (mode === "paste" && uriCount === 0) ||
+                    (mode === "file" && !fileRef.current?.files?.[0])
+                  }
+                  className="btn-primary flex-1"
+                >
+                  {decrypting
+                    ? "Decrypting..."
+                    : mutation.isPending
+                      ? "Importing..."
+                      : mode === "paste"
+                        ? `Import ${uriCount} entries`
+                        : "Import from file"}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </div>

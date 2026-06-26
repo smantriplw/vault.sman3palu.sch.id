@@ -16,12 +16,14 @@ export type SecurityAction =
   | "transit.key.created"
   | "transit.key.rotated"
   | "transit.key.deleted"
-  | "transit.key.updated";
+  | "transit.key.updated"
+  | "entry.revealed"
+  | "secret.revealed";
 
 export async function logSecurityEvent(
   action: SecurityAction,
   details: Record<string, unknown>,
-  userId?: string
+  userId?: string,
 ) {
   try {
     await db.insert(schema.auditLog).values({
