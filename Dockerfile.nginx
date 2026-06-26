@@ -1,0 +1,4 @@
+FROM nginx:alpine
+COPY nginx/templates /etc/nginx/templates/
+COPY nginx/docker-entrypoint.d/ /docker-entrypoint.d/
+RUN chmod +x /docker-entrypoint.d/15-render-config.sh

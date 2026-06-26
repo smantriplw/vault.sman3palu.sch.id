@@ -18,7 +18,7 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: process.env.APP_URL || "http://localhost:5173",
+    origin: [process.env.APP_URL || "http://localhost:5173", process.env.API_DOMAIN_URL].filter((x): x is string => !!x),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE"],
