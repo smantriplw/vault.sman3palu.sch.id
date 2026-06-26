@@ -66,7 +66,7 @@ export async function handleCallback(
 
   const accessToken = tokens.accessToken();
 
-  const res = await fetch(`${issuer}/oidc/userinfo`, {
+  const res = await fetch(`${issuer}/oidc/v1/userinfo`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
